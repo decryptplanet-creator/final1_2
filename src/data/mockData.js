@@ -4,7 +4,7 @@ export const mockManufacturers = [
   {
     id: 'm1',
     name: 'ABC Textiles',
-    type: 'manufacturer' as const,
+    type: 'manufacturer',
     email: 'contact@abctextiles.com',
     phone: '+92 300 1111111',
     location: { lat: 31.5204, lng: 74.3587, address: 'Industrial Area, Lahore' },
@@ -19,7 +19,7 @@ export const mockManufacturers = [
   {
     id: 'm2',
     name: 'Prime Leather Works',
-    type: 'manufacturer' as const,
+    type: 'manufacturer',
     email: 'info@primeleather.com',
     phone: '+92 300 2222222',
     location: { lat: 31.4504, lng: 74.2897, address: 'Sialkot Road, Gujranwala' },
@@ -34,7 +34,7 @@ export const mockManufacturers = [
   {
     id: 'm3',
     name: 'Karachi Garments Ltd',
-    type: 'manufacturer' as const,
+    type: 'manufacturer',
     email: 'sales@karachigarments.com',
     phone: '+92 300 3333333',
     location: { lat: 24.8607, lng: 67.0011, address: 'SITE Area, Karachi' },
@@ -49,7 +49,7 @@ export const mockManufacturers = [
   {
     id: 'm4',
     name: 'Elite Footwear',
-    type: 'manufacturer' as const,
+    type: 'manufacturer',
     email: 'contact@elitefootwear.com',
     phone: '+92 300 4444444',
     location: { lat: 31.5204, lng: 74.3587, address: 'Model Town, Lahore' },
@@ -64,7 +64,7 @@ export const mockManufacturers = [
   {
     id: 'm5',
     name: 'Islamabad Handicrafts',
-    type: 'manufacturer' as const,
+    type: 'manufacturer',
     email: 'info@islamabadhandicrafts.com',
     phone: '+92 300 5555555',
     location: { lat: 33.6844, lng: 73.0479, address: 'F-7 Markaz, Islamabad' },
@@ -82,7 +82,7 @@ export const mockLabour = [
   {
     id: 'l1',
     name: 'Ahmed Khan',
-    type: 'labour' as const,
+    type: 'labour',
     email: 'ahmed.khan@example.com',
     phone: '+92 300 6666666',
     location: { lat: 31.5204, lng: 74.3587, address: 'Johar Town, Lahore' },
@@ -98,7 +98,7 @@ export const mockLabour = [
   {
     id: 'l2',
     name: 'Fatima Bibi',
-    type: 'labour' as const,
+    type: 'labour',
     email: 'fatima.bibi@example.com',
     phone: '+92 300 7777777',
     location: { lat: 31.4697, lng: 74.2728, address: 'Shadman, Lahore' },
@@ -114,7 +114,7 @@ export const mockLabour = [
   {
     id: 'l3',
     name: 'Imran Ali',
-    type: 'labour' as const,
+    type: 'labour',
     email: 'imran.ali@example.com',
     phone: '+92 300 8888888',
     location: { lat: 24.8607, lng: 67.0011, address: 'Gulshan-e-Iqbal, Karachi' },
@@ -130,7 +130,7 @@ export const mockLabour = [
   {
     id: 'l4',
     name: 'Ayesha Malik',
-    type: 'labour' as const,
+    type: 'labour',
     email: 'ayesha.malik@example.com',
     phone: '+92 300 9999999',
     location: { lat: 31.5204, lng: 74.3587, address: 'DHA Phase 5, Lahore' },
@@ -146,7 +146,7 @@ export const mockLabour = [
   {
     id: 'l5',
     name: 'Hassan Raza',
-    type: 'labour' as const,
+    type: 'labour',
     email: 'hassan.raza@example.com',
     phone: '+92 300 1010101',
     location: { lat: 33.6844, lng: 73.0479, address: 'G-10, Islamabad' },
@@ -162,7 +162,7 @@ export const mockLabour = [
   {
     id: 'l6',
     name: 'Sana Tariq',
-    type: 'labour' as const,
+    type: 'labour',
     email: 'sana.tariq@example.com',
     phone: '+92 300 1212121',
     location: { lat: 31.5204, lng: 74.3587, address: 'Gulberg, Lahore' },
@@ -181,7 +181,7 @@ export const mockClients = [
   {
     id: 'c1',
     name: 'Fashion Hub Pvt Ltd',
-    type: 'client' as const,
+    type: 'client',
     email: 'orders@fashionhub.com',
     phone: '+92 300 1313131',
     location: { lat: 31.5204, lng: 74.3587, address: 'MM Alam Road, Lahore' },
@@ -195,7 +195,7 @@ export const mockClients = [
   {
     id: 'c2',
     name: 'Karachi Exports',
-    type: 'client' as const,
+    type: 'client',
     email: 'info@karachiexports.com',
     phone: '+92 300 1414141',
     location: { lat: 24.8607, lng: 67.0011, address: 'Clifton, Karachi' },
@@ -209,7 +209,7 @@ export const mockClients = [
   {
     id: 'c3',
     name: 'Designer Boutique',
-    type: 'client' as const,
+    type: 'client',
     email: 'contact@designerboutique.com',
     phone: '+92 300 1515151',
     location: { lat: 33.6844, lng: 73.0479, address: 'Blue Area, Islamabad' },
@@ -230,14 +230,14 @@ export const mockOrders = [
     quantity: 500,
     budget: 250000,
     deadline: '2026-02-20',
-    status: 'in-progress' as const,
+    status: 'in-progress',
     clientId: 'c1',
     manufacturerId: 'm1',
     escrowStatus: {
       total: 250000,
       deposited: 250000,
-      released: 75000, // 30% upfront
-    }
+      released: 75000,
+    },
   },
   {
     id: 'o2',
@@ -246,13 +246,13 @@ export const mockOrders = [
     quantity: 200,
     budget: 400000,
     deadline: '2026-02-25',
-    status: 'pending' as const,
+    status: 'pending',
     clientId: 'c2',
     escrowStatus: {
       total: 400000,
       deposited: 0,
       released: 0,
-    }
+    },
   },
   {
     id: 'o3',
@@ -261,13 +261,13 @@ export const mockOrders = [
     quantity: 50,
     budget: 750000,
     deadline: '2026-03-15',
-    status: 'pending' as const,
+    status: 'pending',
     clientId: 'c3',
     escrowStatus: {
       total: 750000,
       deposited: 0,
       released: 0,
-    }
+    },
   },
   {
     id: 'o4',
@@ -276,14 +276,14 @@ export const mockOrders = [
     quantity: 300,
     budget: 450000,
     deadline: '2026-02-28',
-    status: 'completed' as const,
+    status: 'completed',
     clientId: 'c1',
     manufacturerId: 'm4',
     escrowStatus: {
       total: 450000,
       deposited: 450000,
       released: 450000,
-    }
+    },
   },
 ];
 
@@ -295,7 +295,7 @@ export const mockJobs = [
     labourId: 'l1',
     manufacturerId: 'm1',
     orderId: 'o1',
-    status: 'active' as const,
+    status: 'active',
     payment: 40000,
     deadline: '2026-02-15',
   },
@@ -304,7 +304,7 @@ export const mockJobs = [
     title: 'Embroidery Work',
     description: 'Heavy embroidery on wedding dresses',
     labourId: 'l2',
-    status: 'pending' as const,
+    status: 'pending',
     payment: 50000,
     deadline: '2026-03-10',
   },
@@ -313,7 +313,7 @@ export const mockJobs = [
     title: 'Leather Cutting',
     description: 'Precision cutting for leather bags',
     labourId: 'l3',
-    status: 'completed' as const,
+    status: 'completed',
     payment: 35000,
     deadline: '2026-01-20',
   },
@@ -326,7 +326,7 @@ export const mockNotifications = [
     message: 'ABC Textiles accepted your order for Cotton Shirts',
     timestamp: '2 hours ago',
     read: false,
-    type: 'success' as const,
+    type: 'success',
   },
   {
     id: 'n2',
@@ -334,7 +334,7 @@ export const mockNotifications = [
     message: '30% payment released to manufacturer',
     timestamp: '5 hours ago',
     read: false,
-    type: 'info' as const,
+    type: 'info',
   },
   {
     id: 'n3',
@@ -342,7 +342,7 @@ export const mockNotifications = [
     message: 'Ahmed Khan sent you a message',
     timestamp: '1 day ago',
     read: true,
-    type: 'message' as const,
+    type: 'message',
   },
   {
     id: 'n4',
@@ -350,6 +350,6 @@ export const mockNotifications = [
     message: 'Your order for Formal Shoes is completed',
     timestamp: '2 days ago',
     read: true,
-    type: 'success' as const,
+    type: 'success',
   },
 ];
