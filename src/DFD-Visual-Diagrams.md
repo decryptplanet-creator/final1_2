@@ -1,0 +1,695 @@
+# SKILLORA PLATFORM - Visual DFD Diagrams
+## Complete ASCII Art Style Diagrams
+
+---
+
+## 📌 DFD LEVEL 0 - CONTEXT DIAGRAM
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                       SKILLORA PLATFORM - DFD LEVEL 0                     ║
+║                         (Context Diagram)                                 ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+         ┏━━━━━━━━━━━━━━━━━┓
+         ┃                 ┃
+         ┃     CLIENT      ┃
+         ┃  (Order Placer) ┃
+         ┃                 ┃
+         ┗━━━━━━━━┯━━━━━━━━┛
+                  │
+     Order Data   │  Order Confirmation
+     Payment Info │  Status Updates
+     Reviews      │  Notifications
+                  │
+                  ▼
+    ╔══════════════════════════════════════════╗
+    ║                                          ║
+    ║         SKILLORA PLATFORM                ║
+    ║         ─────────────────                ║
+    ║                                          ║
+    ║   ✨ Trust in Every Talent ✨            ║
+    ║                                          ║
+    ║   • Triple Verification System           ║
+    ║   • Order Management                     ║
+    ║   • Escrow Payment (30-70%)             ║
+    ║   • Messaging System                     ║
+    ║   • Rating & Reviews                     ║
+    ║                                          ║
+    ║         Process 0.0                      ║
+    ╚══════════════════════════════════════════╝
+         ▲                           ▲
+         │                           │
+         │                           │
+┏━━━━━━━━┷━━━━━━━━━┓       ┏━━━━━━━━┷━━━━━━━━━┓
+┃                  ┃       ┃                  ┃
+┃  MANUFACTURER    ┃       ┃     LABOUR       ┃
+┃  (Order Taker)   ┃       ┃ (Skill Worker)   ┃
+┃                  ┃       ┃                  ┃
+┗━━━━━━━━┯━━━━━━━━━┛       ┗━━━━━━━━┯━━━━━━━━━┛
+         │                           │
+Legal    │ Order                Skill│ Job
+Docs     │ Notifications       Videos│ Opportunities
+Bids     │ Payments            Apply │ Notifications
+         │                           │
+         └───────────────┬───────────┘
+                         │
+                         ▼
+                ┏━━━━━━━━━━━━━━━━┓
+                ┃                ┃
+                ┃ PAYMENT SYSTEM ┃
+                ┃    (ESCROW)    ┃
+                ┃                ┃
+                ┗━━━━━━━━━━━━━━━━┛
+                Payment Confirmations
+                Escrow Management
+```
+
+**LEGEND:**
+- ┏━┓ = External Entities (Blue)
+- ╔═╗ = System Process (Orange)
+- → = Data Flow
+- ▼▲ = Direction of flow
+
+---
+
+## 📌 DFD LEVEL 1 - MAIN PROCESSES
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                       SKILLORA PLATFORM - DFD LEVEL 1                     ║
+║                         (Main Processes)                                  ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━━━┓        ┏━━━━━━━━━━━━━━┓         ┏━━━━━━━━━━━┓
+┃  CLIENT   ┃        ┃ MANUFACTURER ┃         ┃  LABOUR   ┃
+┗━━━┯━━━━━━━┛        ┗━━━━━┯━━━━━━━━┛         ┗━━━┯━━━━━━━┛
+    │ Registration          │ Registration         │ Registration
+    │ Documents             │ Legal Docs           │ Skill Videos
+    │                       │ Affidavit            │
+    ▼                       ▼                      ▼
+╔═══════════════════════════════════════════════════════════╗
+║                    PROCESS 1.0                            ║
+║           USER REGISTRATION & VERIFICATION                ║
+╚═══════════════════════════════════════════════════════════╝
+    │ Verified Users │ Verification Status │ User Profile
+    ▼                ▼                     ▼
+┌─────────────────────────────────────────────────────────┐
+│              D1: USER_DATABASE                          │
+│  • User ID, Name, Email, Phone, CNIC                   │
+│  • User Type, Verification Status                       │
+│  • Rating, Reviews Count, Profile Image                 │
+└─────────────────────────────────────────────────────────┘
+    │                │                      │
+    ├────────────────┼──────────────────────┤
+    │                │                      │
+    ▼                ▼                      ▼
+╔════════════╗  ╔════════════╗  ╔═════════════╗  ╔════════════╗
+║ PROCESS 2.0║  ║ PROCESS 3.0║  ║ PROCESS 4.0 ║  ║ PROCESS 5.0║
+║   ORDER    ║  ║  PAYMENT   ║  ║  MESSAGING  ║  ║   LABOUR   ║
+║ MANAGEMENT ║  ║ MANAGEMENT ║  ║   SYSTEM    ║  ║   HIRING   ║
+╚════════════╝  ╚════════════╝  ╚═════════════╝  ╚════════════╝
+    │                │                │                │
+    ▼                ▼                ▼                ▼
+┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+│D2: ORDER │  │D3:PAYMENT│  │D4:MESSAGE│  │D5:LABOUR │
+│ DATABASE │  │ DATABASE │  │ DATABASE │  │ DATABASE │
+└──────────┘  └──────────┘  └──────────┘  └──────────┘
+    │                │                │                │
+    └────────────────┴────────────────┴────────────────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+         ▼                 ▼                 ▼
+    ╔════════════╗  ╔════════════╗  ╔════════════╗
+    ║ PROCESS 6.0║  ║ PROCESS 7.0║  ║ PROCESS 8.0║
+    ║  DOCUMENT  ║  ║   REVIEW   ║  ║ DASHBOARD  ║
+    ║VERIFICATION║  ║   SYSTEM   ║  ║   SYSTEM   ║
+    ╚════════════╝  ╚════════════╝  ╚════════════╝
+         │                │                │
+         ▼                ▼                ▼
+    ┌──────────┐  ┌──────────┐  ┌──────────┐
+    │D6:DOCUMENT│ │D7:REVIEW │  │D8:ACTIVITY│
+    │ DATABASE │  │ DATABASE │  │ DATABASE │
+    └──────────┘  └──────────┘  └──────────┘
+         │                │                │
+         └────────────────┴────────────────┘
+                          │
+                          ▼
+                 ┏━━━━━━━━━━━━━━┓
+                 ┃ PAYMENT      ┃
+                 ┃ SYSTEM       ┃
+                 ┃ (ESCROW)     ┃
+                 ┗━━━━━━━━━━━━━━┛
+```
+
+**PROCESSES:**
+1. **1.0** - User Registration & Verification
+2. **2.0** - Order Management
+3. **3.0** - Payment Management (30-70 Escrow)
+4. **4.0** - Messaging System
+5. **5.0** - Labour Hiring
+6. **6.0** - Document Verification
+7. **7.0** - Review & Rating System
+8. **8.0** - Dashboard System
+
+**DATA STORES:**
+- **D1** - USER_DATABASE
+- **D2** - ORDER_DATABASE
+- **D3** - PAYMENT_DATABASE
+- **D4** - MESSAGE_DATABASE
+- **D5** - LABOUR_DATABASE
+- **D6** - DOCUMENT_DATABASE
+- **D7** - REVIEW_DATABASE
+- **D8** - ACTIVITY_DATABASE
+
+---
+
+## 📌 DFD LEVEL 2 - ORDER MANAGEMENT (Process 2.0)
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                       SKILLORA PLATFORM - DFD LEVEL 2                     ║
+║                    Process 2.0: ORDER MANAGEMENT                          ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━━━━━┓
+┃   CLIENT    ┃
+┗━━━━━┯━━━━━━━┛
+      │ Order Form
+      │ Data
+      ▼
+╔═════════════════╗
+║  PROCESS 2.1    ║
+║  CREATE ORDER   ║────┐
+╚═════════════════╝    │
+                       │ Save Order
+                       │ Status: PENDING
+                       ▼
+         ┌────────────────────────────────┐
+         │   D2: ORDER_DATABASE           │
+         │  ┌──────────────────────────┐  │
+         │  │ Order ID, Title, Desc    │  │
+         │  │ Client ID, Quantity      │  │
+         │  │ Budget, Deadline         │  │
+         │  │ Status, Bids[], Progress │  │
+         │  └──────────────────────────┘  │
+         └────────────────────────────────┘
+                       │
+         ┌─────────────┴─────────────┐
+         │                           │
+         ▼                           ▼
+╔═════════════════╗         ╔═════════════════╗
+║  PROCESS 2.2    ║         ║  PROCESS 2.3    ║
+║ SEARCH ORDERS   ║         ║ VIEW DETAILS    ║
+║   & FILTER      ║         ║                 ║
+╚═════════════════╝         ╚═════════════════╝
+         │                           │
+         │ Order List                │ Full Details
+         ▼                           ▼
+┏━━━━━━━━━━━━━┓             ┏━━━━━━━━━━━━━┓
+┃MANUFACTURER ┃             ┃CLIENT/MANU  ┃
+┗━━━━━┯━━━━━━━┛             ┗━━━━━━━━━━━━━┛
+      │ Bid Details                 │
+      │ (Price, Timeline)           │ Accept Bid
+      ▼                             ▼
+╔═════════════════╗         ╔═════════════════╗
+║  PROCESS 2.4    ║         ║  PROCESS 2.5    ║
+║   PLACE BID     ║         ║  ACCEPT ORDER   ║
+╚═════════════════╝         ╚═════════════════╝
+      │                             │
+      │ Add Bid                     │ Status: ACTIVE
+      │ Update Count                │ Assign Manufacturer
+      ▼                             ▼
+         ┌────────────────────────────────┐
+         │   D2: ORDER_DATABASE           │
+         │   (Updated with Bids &         │
+         │    Manufacturer Assignment)    │
+         └────────────────────────────────┘
+                       │
+                       │ Trigger 30% Payment
+                       ▼
+              ┌────────────────┐
+              │  PROCESS 3.0   │───────► To Payment System
+              │    PAYMENT     │
+              └────────────────┘
+                       │
+                       │ Order Active
+         ┌─────────────┴─────────────┐
+         │                           │
+         ▼                           ▼
+╔═════════════════╗         ╔═════════════════╗
+║  PROCESS 2.6    ║         ║  PROCESS 2.7    ║
+║  TRACK ORDER    ║◄────────║ UPDATE PROGRESS ║
+╚═════════════════╝         ╚═════════════════╝
+         │                           ▲
+         │ Progress Status           │ Progress %
+         │                           │ Photos/Videos
+         ▼                           │
+┏━━━━━━━━━━━━━┓             ┏━━━━━━━━━━━━━┓
+┃   CLIENT    ┃             ┃MANUFACTURER ┃
+┗━━━━━━━━━━━━━┛             ┗━━━━━┯━━━━━━━┛
+                                   │ Completion
+                                   │ Final Media
+                                   ▼
+                          ╔═════════════════╗
+                          ║  PROCESS 2.8    ║
+                          ║ COMPLETE ORDER  ║
+                          ╚═════════════════╝
+                                   │
+                     ┌─────────────┴─────────────┐
+                     │ Status: COMPLETED         │
+                     │ Set Completion Date       │
+                     ▼                           ▼
+         ┌────────────────────────────────┐
+         │   D2: ORDER_DATABASE           │  ────► Trigger 70% Payment
+         │   (Final Status Update)        │       To PROCESS 3.0
+         └────────────────────────────────┘
+                     │
+                     │ Enable Reviews
+                     ▼
+              ┌────────────────┐
+              │  PROCESS 7.0   │
+              │    REVIEWS     │
+              └────────────────┘
+
+         ╔═════════════════╗
+         ║  PROCESS 2.9    ║◄─── Can be triggered from 2.1, 2.5, 2.6
+         ║  CANCEL ORDER   ║
+         ╚═════════════════╝
+                 │
+                 │ Status: CANCELLED
+                 │ Calculate Refund
+                 ▼
+         ┌────────────────┐
+         │  PROCESS 3.0   │───────► Process Refund
+         │    PAYMENT     │
+         └────────────────┘
+```
+
+**SUB-PROCESSES:**
+- **2.1** - Create Order (Client)
+- **2.2** - Search Orders & Filter (Manufacturer)
+- **2.3** - View Order Details (All)
+- **2.4** - Place Bid (Manufacturer)
+- **2.5** - Accept Order (Client) → Triggers 30% Payment
+- **2.6** - Track Order (Client/Manufacturer)
+- **2.7** - Update Progress (Manufacturer)
+- **2.8** - Complete Order (Manufacturer) → Triggers 70% Payment
+- **2.9** - Cancel Order (Any) → Process Refund
+
+**DATA FLOWS:**
+- Solid lines → Normal data flow
+- Dotted lines → Conditional flow
+- Bold arrows → Trigger to other processes
+
+---
+
+## 📊 COMPLETE SYSTEM FLOW (All Levels Combined)
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║              SKILLORA PLATFORM - COMPLETE SYSTEM FLOW                     ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+LEVEL 0:  ┏━━━━━━━┓ → ╔═══════════════╗ → ┏━━━━━━━━━━━┓
+          ┃CLIENT ┃   ║ SKILLORA 0.0  ║   ┃MANUFACTURER┃
+          ┗━━━━━━━┛   ╚═══════════════╝   ┗━━━━━━━━━━━┛
+                              │
+                              ▼
+                      ┌───────────────┐
+                      │ Break Down To │
+                      └───────────────┘
+                              │
+                              ▼
+LEVEL 1:        ╔═══╗  ╔═══╗  ╔═══╗  ╔═══╗
+                ║1.0║  ║2.0║  ║3.0║  ║4.0║ ... (8 Processes)
+                ╚═══╝  ╚═══╝  ╚═══╝  ╚═══╝
+                  │      │      │      │
+                  ▼      ▼      ▼      ▼
+                [D1]   [D2]   [D3]   [D4] ... (8 Data Stores)
+                              │
+                        ┌─────┴──────┐
+                        │ Focus: 2.0 │
+                        └─────┬──────┘
+                              ▼
+LEVEL 2:        ╔════╗ ╔════╗ ╔════╗ ╔════╗ ╔════╗
+                ║2.1 ║→║2.2 ║→║2.3 ║→║2.4 ║→║2.5 ║
+                ╚════╝ ╚════╝ ╚════╝ ╚════╝ ╚════╝
+                                              │
+                ╔════╗ ╔════╗ ╔════╗          ▼
+                ║2.9 ║ ║2.8 ║←║2.7 ║←──────║2.6 ║
+                ╚════╝ ╚════╝ ╚════╝         ╚════╝
+                  │      │                    
+                  ▼      ▼                    
+            [REFUND] [COMPLETE]               
+```
+
+---
+
+## 🎯 ORDER LIFECYCLE FLOWCHART
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                     ORDER LIFECYCLE IN SKILLORA                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+    START
+      │
+      ▼
+┌─────────────────┐
+│ CLIENT CREATES  │ ◄── Process 2.1
+│     ORDER       │
+│  Status: PENDING│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ MANUFACTURERS   │ ◄── Process 2.2, 2.3
+│  SEARCH & VIEW  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ MANUFACTURERS   │ ◄── Process 2.4
+│   PLACE BIDS    │
+└────────┬────────┘
+         │
+         ▼
+    ╔═══════╗
+    ║ Client║
+    ║Accepts║ ◄── Process 2.5
+    ║  Bid? ║
+    ╚═══╦═══╝
+        ║
+    ┌───╨───┐
+   NO│      │YES
+     │      │
+     ▼      ▼
+┌─────┐  ┌──────────────────┐
+│Wait │  │ Status: ACTIVE   │
+│More │  │ Assign Manu      │
+│Bids │  │ ┌──────────────┐ │
+└─────┘  │ │💰 30% PAYMENT│ │ ◄── Process 3.0
+         │ │   RELEASED   │ │
+         │ └──────────────┘ │
+         └────────┬─────────┘
+                  │
+                  ▼
+         ┌────────────────┐
+         │ MANUFACTURER   │ ◄── Process 2.7
+         │ UPDATES        │
+         │ PROGRESS       │
+         │ (25%-50%-75%)  │
+         └────────┬───────┘
+                  │
+                  ▼
+         ┌────────────────┐
+         │ CLIENT TRACKS  │ ◄── Process 2.6
+         │ ORDER STATUS   │
+         └────────┬───────┘
+                  │
+                  ▼
+            ╔═══════════╗
+            ║ Progress  ║
+            ║   100%?   ║
+            ╚═══╦═══════╝
+                ║
+            ┌───╨───┐
+           NO│      │YES
+             │      │
+             ▼      ▼
+        ┌──────┐ ┌────────────────────┐
+        │Keep  │ │ MARK COMPLETE      │ ◄── Process 2.8
+        │Working│ │ Status: COMPLETED  │
+        └──────┘ │ ┌────────────────┐ │
+                 │ │💰 70% PAYMENT  │ │ ◄── Process 3.0
+                 │ │   RELEASED     │ │
+                 │ └────────────────┘ │
+                 └──────────┬─────────┘
+                            │
+                            ▼
+                   ┌────────────────┐
+                   │ ENABLE REVIEWS │ ◄── Process 7.0
+                   │ Client reviews │
+                   │  Manufacturer  │
+                   └────────┬───────┘
+                            │
+                            ▼
+                          END
+
+    ╔════════════════╗
+    ║ CANCEL ORDER?  ║ ◄── Process 2.9
+    ║ (Anytime)      ║
+    ╚════╦═══════════╝
+         ║
+         ▼
+    ┌─────────────────┐
+    │ Calculate Refund│
+    │ Based on Progress│
+    │ • 0%    → 100%  │
+    │ • 25%   → 90%   │
+    │ • 50%   → 70%   │
+    │ • 75%   → 50%   │
+    │ • 100%  → 0%    │
+    └────────┬────────┘
+             │
+             ▼
+           END
+```
+
+---
+
+## 💰 PAYMENT FLOW (ESCROW SYSTEM)
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    ESCROW PAYMENT FLOW (30-70 SPLIT)                     ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━━━┓
+┃  CLIENT   ┃
+┗━━━━┯━━━━━━┛
+     │ Makes Payment
+     │ (Total Amount)
+     ▼
+╔═══════════════════╗
+║   PROCESS 3.0     ║
+║ PAYMENT MANAGEMENT║
+╚═══════════════════╝
+     │
+     │ Hold in Escrow
+     ▼
+┌───────────────────┐
+│ ESCROW ACCOUNT    │
+│ ┌───────────────┐ │
+│ │ Total: 100%   │ │
+│ │ Status: HELD  │ │
+│ └───────────────┘ │
+└─────────┬─────────┘
+          │
+          │ Order Accepted (Process 2.5)
+          ▼
+    ┌──────────┐
+    │ RELEASE  │
+    │   30%    │
+    └────┬─────┘
+         │
+         ▼
+┏━━━━━━━━━━━━━┓
+┃MANUFACTURER ┃ ◄── Receives 30% Upfront
+┗━━━━━━━━━━━━━┛
+         │
+         │ Work in Progress
+         │
+         ▼
+┌───────────────────┐
+│ ESCROW ACCOUNT    │
+│ ┌───────────────┐ │
+│ │ Remaining: 70%│ │
+│ │ Status: HELD  │ │
+│ └───────────────┘ │
+└─────────┬─────────┘
+          │
+          │ Order Completed (Process 2.8)
+          │ Client Approves
+          ▼
+    ┌──────────┐
+    │ RELEASE  │
+    │   70%    │
+    └────┬─────┘
+         │
+         ▼
+┏━━━━━━━━━━━━━┓
+┃MANUFACTURER ┃ ◄── Receives 70% on Completion
+┗━━━━━━━━━━━━━┛
+
+    TRANSACTION COMPLETE ✓
+
+
+╔════════════════╗
+║ IF CANCELLED   ║
+╚════════════════╝
+        │
+        ▼
+┌────────────────┐
+│ Refund Based   │
+│ on Progress:   │
+│                │
+│ PENDING → 100% │
+│ 0-25%   → 90%  │
+│ 25-50%  → 70%  │
+│ 50-75%  → 50%  │
+│ 75-100% → 0%   │
+└────────┬───────┘
+         │
+         ▼
+  ┏━━━━━━━━━━━┓
+  ┃  CLIENT   ┃ ◄── Receives Refund
+  ┗━━━━━━━━━━━┛
+```
+
+---
+
+## 🔐 VERIFICATION FLOW (Process 1.0)
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    USER VERIFICATION FLOW                                 ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━━┓  ┏━━━━━━━━━━━━━┓  ┏━━━━━━━━━┓
+┃ CLIENT   ┃  ┃MANUFACTURER ┃  ┃ LABOUR  ┃
+┗━━━┯━━━━━━┛  ┗━━━━┯━━━━━━━━┛  ┗━━━┯━━━━━┛
+    │             │                │
+    │ Register    │ Register       │ Register
+    ▼             ▼                ▼
+╔═══════════════════════════════════════════╗
+║        PROCESS 1.0                        ║
+║   USER REGISTRATION & VERIFICATION        ║
+╚═══════════════════════════════════════════╝
+    │                │                │
+    │                │                │
+    ▼                ▼                ▼
+┌──────────┐  ┌──────────────┐  ┌──────────┐
+│ Upload:  │  │ Upload:      │  │ Upload:  │
+│ • CNIC   │  │ • CNIC       │  │ • CNIC   │
+│ • Business│ │ • Legal Docs │  │ • Skills │
+│   Docs   │  │ • Affidavit  │  │   Videos │
+│          │  │ • PPC Law    │  │ • Photos │
+└────┬─────┘  └──────┬───────┘  └────┬─────┘
+     │               │                │
+     ▼               ▼                ▼
+┌─────────────────────────────────────────┐
+│      PROCESS 6.0 - DOCUMENT VERIFY      │
+│    • Scan Documents                     │
+│    • Check Authenticity                 │
+│    • Validate CNIC                      │
+│    • Check PPC Law (Manufacturers)      │
+│    • Review Skill Videos (Labour)       │
+└─────────────────┬───────────────────────┘
+                  │
+           ╔══════╩══════╗
+           ║  APPROVED?  ║
+           ╚══════╦══════╝
+                  ║
+         ┌────────┴────────┐
+        YES                NO
+         │                  │
+         ▼                  ▼
+┌────────────────┐   ┌──────────────┐
+│ VERIFIED ✓     │   │ REJECTED ✗   │
+│ Issue Badge    │   │ Send Reason  │
+│ Enable Features│   │ Allow Resubmit│
+└────────┬───────┘   └──────┬───────┘
+         │                  │
+         ▼                  ▼
+┌─────────────────────────────────┐
+│     D1: USER_DATABASE           │
+│   Update Verification Status    │
+└─────────────────────────────────┘
+         │
+         ▼
+┏━━━━━━━━━━━━━━━━━━┓
+┃ USER CAN NOW:    ┃
+┃ • Post Orders    ┃ (Client)
+┃ • Bid on Orders  ┃ (Manufacturer)
+┃ • Get Hired      ┃ (Labour)
+┗━━━━━━━━━━━━━━━━━━┛
+```
+
+---
+
+## 💬 MESSAGING FLOW (Process 4.0)
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                        MESSAGING SYSTEM FLOW                              ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━┓                                    ┏━━━━━━━━━━━━━┓
+┃ CLIENT  ┃                                    ┃MANUFACTURER ┃
+┗━━━┯━━━━━┛                                    ┗━━━━┯━━━━━━━━┛
+    │                                               │
+    │ Send Message                                  │ Send Message
+    │ "Can you complete by Dec 20?"                 │ "Yes, with samples"
+    ▼                                               ▼
+╔═════════════════════════════════════════════════════════════╗
+║              PROCESS 4.0 - MESSAGING SYSTEM                 ║
+║  • Validate sender & receiver                               ║
+║  • Check if conversation exists                             ║
+║  • Process attachments (if any)                             ║
+╚═════════════════════════════════════════════════════════════╝
+    │                                               │
+    │ Store Message                                 │ Store Message
+    ▼                                               ▼
+┌────────────────────────────────────────────────────────────┐
+│               D4: MESSAGE_DATABASE                         │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ Message ID: 001                                      │  │
+│  │ From: Client                                         │  │
+│  │ To: Manufacturer                                     │  │
+│  │ Text: "Can you complete by Dec 20?"                  │  │
+│  │ Timestamp: 10:30 AM                                  │  │
+│  │ Status: DELIVERED                                    │  │
+│  └──────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────┘
+    │                                               │
+    │ Notify Receiver                               │ Notify Sender
+    ▼                                               ▼
+┏━━━━━━━━━━━━━┓                              ┏━━━━━━━━━┓
+┃MANUFACTURER ┃                              ┃ CLIENT  ┃
+┃ 🔔 New Msg  ┃                              ┃ ✓ Sent  ┃
+┗━━━━━━━━━━━━━┛                              ┗━━━━━━━━━┛
+```
+
+---
+
+**Platform:** Skillora ✨  
+**Tagline:** Trust in Every Talent  
+**Theme:** Complete BLACK (#000000) with Dark/Light mode toggle  
+
+---
+
+**DIAGRAM LEGEND:**
+
+```
+┏━━━┓ = External Entity (Users, Systems)
+╔═══╗ = Process (System Functions)
+┌───┐ = Data Store (Database)
+│   │ = Notes/Details
+═══   = Strong connection
+───   = Normal connection
+→     = Data Flow Direction
+▼▲    = Vertical Flow
+```
+
+**END OF VISUAL DIAGRAMS**
