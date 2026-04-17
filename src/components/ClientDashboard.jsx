@@ -30,7 +30,7 @@ import { PostOrderModal } from './PostOrderModal';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { SearchModal } from './SearchModal';
 import { ProfileModal } from './ProfileMangement';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { HorizontalProfiles } from './HorizontalProfiles';
 import { NotificationsModal } from './NotificationsModal';
 import { EmailModal } from './EmailModal(Optional)';
@@ -448,7 +448,15 @@ export function ClientDashboard({ user, onLogout }) {
           onChatClick={() => { setShowProfile(false); setShowChat(true); }} 
         />
       )}
-      {showChat && <ChatModal onClose={() => setShowChat(false)} />}
+      {showChat && (
+  <ChatModule 
+    currentUserId={user.id || user._id} 
+    receiverId="user_01" 
+    receiverName="Manufacturer" 
+    orderId="order_01" 
+    onClose={() => setShowChat(false)} 
+  />
+)}
       {showNotifications && <NotificationsModal onClose={() => setShowNotifications(false)} />}
       {showEmail && <EmailModal onClose={() => setShowEmail(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} userType="client" />}
