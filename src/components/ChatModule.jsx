@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
-import { Send, X, Loader2, AlertTriangle, Lock, User } from 'lucide-react';
+import { Send, X, Loader2, AlertTriangle, Lock, User, Paperclip, Camera, Image, FileText } from 'lucide-react';
 
-// Socket connection (Backend URL)
-// ChatModule.jsx mein ye dono lines update karein
-const socket = io("http://localhost:5001"); // 5001 ko 5000 kar dein
+const socket = io("http://localhost:5001");
 
 export default function ChatModule({ 
   currentUserId = "user_02", 
@@ -19,12 +17,15 @@ export default function ChatModule({
   const [loading, setLoading] = useState(true);
   const [warning, setWarning] = useState("");
   const [isLocked, setIsLocked] = useState(false);
+  const [showAttachments, setShowAttachments] = useState(false);
   const messagesEndRef = useRef(null);
   
-  // Backend API URL
-const API_URL = "http://localhost:5001/api/messages"; // 5001 ko 5000 kar dein
+  // File References
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  
+  const API_URL = "http://localhost:5001/api/messages";
 
-  // --- 1. Fetch History & Socket Join ---
   useEffect(() => {
     const fetchHistory = async () => {
       try {
@@ -47,13 +48,36 @@ const API_URL = "http://localhost:5001/api/messages"; // 5001 ko 5000 kar dein
     return () => socket.off('receive_message');
   }, [orderId]);
 
-  // --- 2. Send Message Function ---
+  // --- NAYA FILE HANDLING LOGIC ---
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+      const base64File = reader.result;
+      const payload = {
+        sender: currentUserId,
+        receiver: receiverId,
+        orderId: orderId,
+        message: file.type.startsWith("image/") ? `IMAGE_DATA:${base64File}` : `FILE_DATA:${file.name}`,
+        createdAt: new Date().toISOString()
+      };
+
+      try {
+        const response = await axios.post(API_URL, payload);
+        socket.emit('send_message', response.data);
+        setMessages((prev) => [...prev, response.data]);
+        setShowAttachments(false);
+      } catch (err) {
+        alert("File send nahi ho saki!");
+      }
+    };
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    
-    // DEBUG ALERT (Check karne ke liye ke button kaam kar raha hai)
-    console.log("Button clicked! Message:", newMessage);
-
     if (!newMessage.trim() || isLocked) return;
 
     const payload = {
@@ -65,22 +89,18 @@ const API_URL = "http://localhost:5001/api/messages"; // 5001 ko 5000 kar dein
     };
 
     try {
-      // Database mein save kerna
       const response = await axios.post(API_URL, payload);
-      
-      // Live doosre bande ko bhejna
       socket.emit('send_message', response.data);
-
       setMessages((prev) => [...prev, response.data]);
       setNewMessage("");
       setWarning("");
+      setShowAttachments(false);
     } catch (error) {
-      console.error("Send Error:", error);
       if (error.response?.data?.ai_warning) {
         setWarning(error.response.data.ai_warning);
         if (error.response.data.ai_warning.includes("Locked")) setIsLocked(true);
       } else {
-        alert("Backend tak message nahi gaya! Check console.");
+        alert("Backend Server (Port 5001) band hai ya block hai!");
       }
     }
   };
@@ -90,7 +110,7 @@ const API_URL = "http://localhost:5001/api/messages"; // 5001 ko 5000 kar dein
   }, [messages]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-sans">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-sans text-slate-800">
       <div className="bg-white w-full max-w-md h-[600px] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative border border-gray-100">
         
         {/* Header */}
@@ -109,7 +129,6 @@ const API_URL = "http://localhost:5001/api/messages"; // 5001 ko 5000 kar dein
           </button>
         </div>
 
-        {/* AI Warning Banner */}
         {warning && (
           <div className="bg-red-50 border-b border-red-100 p-3 flex items-start gap-2 animate-pulse">
             <AlertTriangle className="text-red-500 shrink-0" size={16} />
@@ -123,19 +142,20 @@ const API_URL = "http://localhost:5001/api/messages"; // 5001 ko 5000 kar dein
             <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
               <Loader2 className="animate-spin mr-2" /> Loading History...
             </div>
-          ) : messages.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-slate-400 italic text-sm text-center px-10">
-              No messages found. Start the conversation!
-            </div>
           ) : (
             messages.map((m, index) => {
               const isMe = m.sender === currentUserId;
+              const isImage = m.message.startsWith("IMAGE_DATA:");
               return (
                 <div key={index} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`p-3 rounded-2xl max-w-[85%] shadow-sm text-sm ${
+                  <div className={`p-2 rounded-2xl max-w-[85%] shadow-sm text-sm ${
                     isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-slate-800 border border-gray-200 rounded-bl-none'
                   }`}>
-                    {m.message}
+                    {isImage ? (
+                      <img src={m.message.split("IMAGE_DATA:")[1]} alt="Shared" className="rounded-lg max-h-48 w-full object-cover" />
+                    ) : (
+                      <p>{m.message}</p>
+                    )}
                     <div className={`text-[10px] mt-1 opacity-70 text-right ${isMe ? 'text-blue-100' : 'text-gray-500'}`}>
                       {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
@@ -147,19 +167,49 @@ const API_URL = "http://localhost:5001/api/messages"; // 5001 ko 5000 kar dein
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Form */}
+        {/* --- ATTACHMENT MENU POPUP --- */}
+        {showAttachments && (
+          <div className="absolute bottom-20 left-4 bg-white shadow-2xl border border-gray-100 rounded-2xl p-2 flex gap-4 animate-in slide-in-from-bottom-2 z-10">
+            <button onClick={() => cameraInputRef.current.click()} className="flex flex-col items-center gap-1 p-2 hover:bg-blue-50 rounded-xl transition-all">
+              <div className="bg-blue-100 p-3 rounded-full text-blue-600"><Camera size={20}/></div>
+              <span className="text-[10px] font-medium">Camera</span>
+            </button>
+            <button onClick={() => fileInputRef.current.click()} className="flex flex-col items-center gap-1 p-2 hover:bg-purple-50 rounded-xl transition-all">
+              <div className="bg-purple-100 p-3 rounded-full text-purple-600"><Image size={20}/></div>
+              <span className="text-[10px] font-medium">Gallery</span>
+            </button>
+            <button onClick={() => fileInputRef.current.click()} className="flex flex-col items-center gap-1 p-2 hover:bg-orange-50 rounded-xl transition-all">
+              <div className="bg-orange-100 p-3 rounded-full text-orange-600"><FileText size={20}/></div>
+              <span className="text-[10px] font-medium">Document</span>
+            </button>
+          </div>
+        )}
+
+        {/* Hidden Inputs for File and Camera */}
+        <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf" onChange={handleFileChange} />
+        <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleFileChange} />
+
+        {/* Input Form with + Button */}
         <div className="p-4 bg-white border-t border-gray-100">
           {isLocked ? (
             <div className="flex items-center justify-center gap-2 p-3 bg-gray-50 rounded-xl text-gray-400 text-xs italic border border-dashed border-gray-300">
               <Lock size={14} /> This chat is locked for security review.
             </div>
           ) : (
-            <form onSubmit={handleSendMessage} className="flex gap-2">
+            <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
+              <button 
+                type="button"
+                onClick={() => setShowAttachments(!showAttachments)}
+                className={`p-2.5 rounded-full transition-all ${showAttachments ? 'bg-blue-600 text-white rotate-45' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              >
+                <Paperclip size={20} />
+              </button>
+
               <input 
                 className="flex-1 border-none bg-slate-100 p-3 rounded-full outline-none text-sm focus:ring-2 focus:ring-blue-500 transition-all shadow-inner"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type and press Send..."
+                placeholder="Type your message here..."
                 autoComplete="off"
               />
               <button 

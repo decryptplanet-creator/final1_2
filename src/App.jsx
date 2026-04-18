@@ -15,6 +15,7 @@ import { CompleteEnhancedRegistrationForm } from './components/CompleteEnhancedR
 import { AIFeaturesDemo } from './components/AIFeaturesDemo';
 import { Smartphone, Monitor, Moon, Sun, ShieldCheck, Sparkles, ArrowLeft } from 'lucide-react';
 
+
 function AppContent() {
   const { isDarkMode, toggleTheme } = useTheme();
   const [currentUser, setCurrentUser] = useState(null);

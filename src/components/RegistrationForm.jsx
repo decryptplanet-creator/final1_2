@@ -14,6 +14,7 @@ import {
 import { SelfieCaptureModal } from './SelfieCaptureModal';
 import { LocationModal } from './LocationModal';
 import { useTheme } from '../contexts/ThemeContext';
+import LegalCompliance from './LegalCompliance'; // 1. YAHAN IMPORT KAREIN
 
 export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
   const { isDarkMode } = useTheme();
