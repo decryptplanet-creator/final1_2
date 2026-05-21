@@ -9,12 +9,15 @@ export function ReviewSubmissionModal({
   onClose, 
   onSubmit,
   manufacturerName,
+  targetName,
+  targetRole = 'user',
   orderId 
 }) {
   const { isDarkMode } = useTheme();
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState('');
+  const reviewTargetName = targetName || manufacturerName || 'User';
 
   const handleSubmit = () => {
     if (rating === 0) {
@@ -35,10 +38,10 @@ export function ReviewSubmissionModal({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className={isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}>
-                Post-Delivery Feedback
+                Submit Review
               </CardTitle>
               <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Order #{orderId} - {manufacturerName}
+                Order #{orderId} - {reviewTargetName}
               </p>
             </div>
             <Button 
@@ -56,7 +59,7 @@ export function ReviewSubmissionModal({
           {/* Star Rating */}
           <div>
             <label className={`block text-sm font-medium mb-3 ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
-              Rate Your Experience
+              Rate Your Experience with {targetRole}
             </label>
             <div className="flex items-center gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -95,7 +98,7 @@ export function ReviewSubmissionModal({
             <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Share your experience with the manufacturer's service, quality, delivery time, communication, etc..."
+              placeholder={`Share your experience with this ${targetRole}'s service, quality, delivery time, communication, etc...`}
               className={`min-h-[150px] ${
                 isDarkMode 
                   ? 'bg-gray-800 border-gray-700 text-[#F9FAFB] placeholder:text-gray-500' 
@@ -114,7 +117,7 @@ export function ReviewSubmissionModal({
             className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white"
             disabled={rating === 0 || comment.trim().length < 10}
           >
-            Submit for AI Verification
+            Submit Review
           </Button>
         </CardContent>
       </Card>

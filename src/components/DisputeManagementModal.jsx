@@ -4,48 +4,109 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
-import { Badge } from './ui/badge';
+import { Textarea } from './ui/textarea input';
 import { AlertTriangle, X, CheckCircle, Clock, AlertCircle, Shield } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
-export function DisputeModal({ onClose, orderId, orderTitle }) {
+const API_BASE_URL = 'http://localhost:5003';
+
+export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted }) {
   const { isDarkMode } = useTheme();
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDescription, setDisputeDescription] = useState('');
   const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [resolution, setResolution] = useState(null);
+  const [referenceId, setReferenceId] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files || []);
     setEvidenceFiles(prev => [...prev, ...files]);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!disputeReason || !disputeDescription) {
       alert('Please fill all required fields');
       return;
     }
 
-    // R.1.20: Automated Dispute Resolution - AI analyzes dispute
+    setSubmitError('');
+    setIsSubmitting(true);
     setSubmitted(true);
-    
-    // Simulate AI analysis
-    setTimeout(() => {
-      // Check if dispute is minor (can be auto-resolved)
-      const isMinorDispute = disputeDescription.length < 200 || 
-                            disputeReason.toLowerCase().includes('delay') ||
-                            disputeReason.toLowerCase().includes('quality issue');
-      
-      if (isMinorDispute && evidenceFiles.length > 0) {
-        // R.1.20: Auto-resolve minor disputes
-        setResolution('auto-resolved');
-      } else {
-        // R.1.21: Escalate major disputes to admin
-        setResolution('escalated');
+
+    const generatedReferenceId = `DSP-${orderId}-${Date.now()}`;
+    setReferenceId(generatedReferenceId);
+
+    try {
+      const disputePayload = {
+        orderId,
+        title: orderTitle,
+        reason: disputeReason,
+        description: disputeDescription,
+        evidenceFiles: evidenceFiles.map((file) => file.name),
+        referenceId: generatedReferenceId,
+      };
+
+      const [escrowResponse, createResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/escrow/dispute/${orderId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'disputed',
+            disputeReason,
+            disputeDescription,
+            referenceId: generatedReferenceId,
+          }),
+        }),
+        fetch(`${API_BASE_URL}/api/dispute/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(disputePayload),
+        }),
+      ]);
+
+      let escrowData = {};
+      let createData = {};
+
+      try {
+        escrowData = await escrowResponse.json();
+      } catch {}
+
+      try {
+        createData = await createResponse.json();
+      } catch {}
+
+      if (!escrowResponse.ok) {
+        throw new Error(escrowData.message || escrowData.detail || 'Failed to update escrow dispute status');
       }
-    }, 3000);
+
+      if (!createResponse.ok) {
+        throw new Error(createData.message || createData.detail || 'Failed to create dispute');
+      }
+
+      const resolvedReferenceId = createData.referenceId || generatedReferenceId;
+      setReferenceId(resolvedReferenceId);
+
+      const resolutionStatus = createData.status === 'auto-resolved' ? 'auto-resolved' : 'escalated';
+      setResolution(resolutionStatus);
+
+      if (onSubmitted) {
+        onSubmitted({
+          status: 'disputed',
+          disputeReason,
+          disputeDescription,
+          disputeReferenceId: resolvedReferenceId,
+          escrowNotification: 'Dispute raised successfully. Escrow notified and funds are on hold pending review.',
+        });
+      }
+    } catch (error) {
+      setSubmitted(false);
+      setSubmitError(error.message || 'Unable to submit dispute right now');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted && !resolution) {
@@ -108,7 +169,7 @@ export function DisputeModal({ onClose, orderId, orderTitle }) {
               <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 <strong>Status:</strong> Escalated
                 <br/>
-                <strong>Reference ID:</strong> DSP-{orderId}-{Date.now()}
+                <strong>Reference ID:</strong> {referenceId}
                 <br/>
                 <strong>Expected Resolution:</strong> 24-48 hours
               </p>
@@ -201,12 +262,18 @@ export function DisputeModal({ onClose, orderId, orderTitle }) {
             )}
           </div>
 
+          {submitError && (
+            <div className={`rounded-lg border p-3 text-sm ${isDarkMode ? 'border-red-800 bg-red-950/30 text-red-300' : 'border-red-200 bg-red-50 text-red-700'}`}>
+              {submitError}
+            </div>
+          )}
+
           <div className="flex gap-2">
             <Button onClick={onClose} variant="outline" className="flex-1">
               Cancel
             </Button>
-            <Button onClick={handleSubmit} className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8]">
-              Submit Dispute
+            <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8]">
+              {isSubmitting ? 'Submitting...' : 'Submit Dispute'}
             </Button>
           </div>
         </CardContent>

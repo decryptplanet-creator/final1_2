@@ -14,6 +14,20 @@ import { SelfieCaptureModal } from './SelfieCaptureModal';
 import { LocationModal } from './LocationModal';
 import { useTheme } from '../contexts/ThemeContext';
 
+const CNIC_VERIFICATION_API_URL = import.meta.env.VITE_CNIC_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = String(reader.result || '');
+    resolve(result.includes(',') ? result.split(',')[1] : result);
+  };
+  reader.onerror = () => reject(reader.error || new Error('Unable to read file'));
+  reader.readAsDataURL(file);
+});
+
+const dataUrlToBase64 = (dataUrl) => String(dataUrl || '').split(',')[1] || String(dataUrl || '');
+
 export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack }) {
   const { isDarkMode } = useTheme();
   const [step, setStep] = useState('basic');
@@ -30,6 +44,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
     password: '',
     confirmPassword: '',
     cnic: '',
+    dob: '',
     // Labour specific
     skills: [],
     rate: '',
@@ -56,6 +71,8 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
   const [videoUploaded, setVideoUploaded] = useState(false);
   const [businessDocUploaded, setBusinessDocUploaded] = useState(false);
   const [locationVerified, setLocationVerified] = useState(false);
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [verificationError, setVerificationError] = useState('');
   
   const cnicFrontInputRef = useRef(null);
   const cnicBackInputRef = useRef(null);
@@ -149,7 +166,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
 
   const handleBasicSubmit = () => {
     // Validate basic info
-    if (!formData.name || !formData.email || !formData.phone || !formData.address || !formData.password) {
+    if (!formData.name || !formData.email || !formData.phone || !formData.address || !formData.password || !formData.cnic || !formData.dob) {
       alert('Please fill all required fields');
       return;
     }
@@ -175,7 +192,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
     setStep('verification');
   };
 
-  const handleVerificationSubmit = () => {
+  const handleVerificationSubmit = async () => {
     // Validate verification docs - Common for all
     if (!cnicFrontUploaded || !cnicFrontFile) {
       alert('Please upload CNIC front image');
@@ -194,15 +211,48 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
       return;
     }
 
-    // Manufacturer / labour extras are optional in the UI; do not block submit (see labels on those fields).
-    
-    // Start AI-based verification process
     setStep('verifying');
-    
-    // Simulate AI verification (facial recognition, document validation, location verification)
-    setTimeout(() => {
+    setVerificationError('');
+    setVerificationResult(null);
+
+    try {
+      const payload = {
+        cnic_front: await fileToBase64(cnicFrontFile),
+        cnic_back: await fileToBase64(cnicBackFile),
+        selfie: dataUrlToBase64(selfieData),
+        user_name: formData.name,
+        user_cnic: formData.cnic,
+        user_dob: formData.dob,
+        user_expiry: null,
+        user_id: formData.email || formData.cnic || `user_${Date.now()}`
+      };
+
+      const response = await fetch(`${CNIC_VERIFICATION_API_URL}/api/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success || !data.result) {
+        throw new Error(data.detail || data.message || 'CNIC verification failed');
+      }
+
+      setVerificationResult(data.result);
+
+      if (data.result.final_decision === 'FAKE') {
+        throw new Error('CNIC verification failed. Please upload clearer original documents.');
+      }
+
       setStep('verified');
-    }, 3000);
+    } catch (error) {
+      console.error('CNIC verification error:', error);
+      setVerificationError(error.message || 'CNIC verification failed');
+      setStep('verification');
+    }
   };
 
   const handleComplete = () => {
@@ -211,14 +261,17 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
       email: formData.email,
       phone: formData.phone,
       cnic: formData.cnic,
+      dob: formData.dob,
       address: formData.address,
+      password: formData.password,
       location: location || undefined,
       skills: formData.skills.length > 0 ? formData.skills : undefined,
       rate: formData.rate ? Number(formData.rate) : undefined,
       videoProfile: formData.videoProfile ? URL.createObjectURL(formData.videoProfile) : undefined,
       documents: [],
       isVerified: true,
-      trustScore: 50, // Initial trust score
+      trustScore: verificationResult?.final_score ? Math.round(verificationResult.final_score) : 50,
+      cnicVerification: verificationResult || undefined,
     };
 
     // Add CNIC documents
@@ -235,6 +288,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
       userData.documents.push({ type: 'Affidavit', file: formData.businessDocuments }); // Placeholder
     }
 
+    console.log("Form se data nikal raha hai:", userData); // Debugging ke liye
     onComplete(userData);
   };
 
@@ -330,6 +384,17 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                 placeholder="12345-1234567-1"
                 value={formData.cnic}
                 onChange={(e) => handleInputChange('cnic', e.target.value)}
+                className={`mt-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="dob" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Date of Birth *</Label>
+              <Input
+                id="dob"
+                type="date"
+                value={formData.dob}
+                onChange={(e) => handleInputChange('dob', e.target.value)}
                 className={`mt-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
               />
             </div>
@@ -794,6 +859,12 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
               </div>
             )}
 
+            {verificationError && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {verificationError}
+              </div>
+            )}
+
             <Button
               type="button"
               onClick={handleVerificationSubmit}
@@ -861,8 +932,15 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
             <p className="text-gray-600 mb-2">Your account has been verified</p>
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563EB]/10 rounded-full mb-6">
               <Sparkles className="size-4 text-[#2563EB]" />
-              <span className="text-sm font-medium text-[#2563EB]">Trust Score: 95/100</span>
+              <span className="text-sm font-medium text-[#2563EB]">
+                Trust Score: {Math.round(verificationResult?.final_score || 50)}/100
+              </span>
             </div>
+            {verificationResult?.final_decision && (
+              <p className="text-sm text-gray-600 mb-6">
+                CNIC decision: {verificationResult.final_decision}
+              </p>
+            )}
             <Button
               onClick={handleComplete}
               className="w-full bg-[#2563EB] hover:bg-[#1d4ed8]"

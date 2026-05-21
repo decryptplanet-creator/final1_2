@@ -15,11 +15,13 @@ import { NotificationCenter } from './NotificationCenter';
 import { useTheme } from '../contexts/ThemeContext';
 
 export function EnhancedAdminDashboard({ onLogout }) {
+  const API_BASE_URL = 'http://localhost:5003';
   const { isDarkMode, toggleTheme } = useTheme();
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(null);
+  const [isResolvingDispute, setIsResolvingDispute] = useState(false);
 
   // Mock Data
   const stats = {
@@ -68,7 +70,7 @@ export function EnhancedAdminDashboard({ onLogout }) {
     },
   ];
 
-  const disputes = [
+  const [disputes, setDisputes] = useState([
     {
       id: '1',
       orderId: '#104',
@@ -105,7 +107,7 @@ export function EnhancedAdminDashboard({ onLogout }) {
       priority: 'high',
       ppcViolation: true,
     },
-  ];
+  ]);
 
   const systemLogs = [
     {
@@ -186,15 +188,70 @@ export function EnhancedAdminDashboard({ onLogout }) {
       show: true,
       action: action === 'refund' ? 'Refund to Client' : action === 'release' ? 'Release Payment' : 'Suspend Account',
       message: messages[action],
-      onConfirm: () => {
-        setShowConfirmation(null);
-        setSelectedDispute(null);
-        const actionMessages = {
-          refund: `✓ Refund of PKR ${dispute.amount.toLocaleString()} issued to ${dispute.client}`,
-          release: `✓ Payment of PKR ${dispute.amount.toLocaleString()} released to ${dispute.manufacturer}`,
-          suspend: `⚠ Account suspended. PPC violation recorded.`,
-        };
-        alert(actionMessages[action]);
+      onConfirm: async () => {
+        setIsResolvingDispute(true);
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/dispute/resolve/${dispute.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action,
+              status: action === 'suspend' ? 'ppc-enforced' : 'resolved',
+              orderId: dispute.orderId,
+            }),
+          });
+
+          let data = {};
+          try {
+            data = await response.json();
+          } catch {}
+
+          if (!response.ok) {
+            throw new Error(data.message || data.detail || 'Failed to resolve dispute');
+          }
+
+          const updatedStatus = data.status || (action === 'suspend' ? 'ppc-enforced' : 'resolved');
+
+          setDisputes((currentDisputes) =>
+            currentDisputes.map((item) =>
+              item.id === dispute.id
+                ? {
+                    ...item,
+                    status: updatedStatus,
+                    resolutionAction: action,
+                  }
+                : item
+            )
+          );
+
+          if (selectedDispute?.id === dispute.id) {
+            setSelectedDispute((current) =>
+              current
+                ? {
+                    ...current,
+                    status: updatedStatus,
+                    resolutionAction: action,
+                  }
+                : null
+            );
+          }
+
+          setShowConfirmation(null);
+          setSelectedDispute(null);
+
+          const actionMessages = {
+            refund: `Refund completed for ${dispute.client}.`,
+            release: `Payment released to ${dispute.manufacturer}.`,
+            suspend: `PPC enforcement recorded for this dispute.`,
+          };
+
+          alert(data.message || actionMessages[action]);
+        } catch (error) {
+          alert(error.message || 'Unable to resolve dispute right now.');
+        } finally {
+          setIsResolvingDispute(false);
+        }
       },
     });
   };

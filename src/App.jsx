@@ -1,7 +1,7 @@
 import { AdminDashboard } from './components/AdminDashboard';
 import { EnhancedAdminDashboard } from './components/EnhancedAdminDashboard';
 import { AdminLogin } from './components/AdminLogin';
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // useEffect add kiya hai token check ke liye
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LandingPage } from './components/LandingPage';
 import { ClientDashboard } from './components/ClientDashboard';
@@ -13,8 +13,9 @@ import { EscrowDemoPage } from './components/EscrowDemoPage';
 import { EscrowFlowDemoButton } from './components/EscrowFlowDemoButton';
 import { CompleteEnhancedRegistrationForm } from './components/CompleteEnhancedRegistrationForm';
 import { AIFeaturesDemo } from './components/AIFeaturesDemo';
-import { Smartphone, Monitor, Moon, Sun, ShieldCheck, Sparkles, ArrowLeft } from 'lucide-react';
 
+// Icons
+import { Smartphone, Monitor, Moon, Sun, Sparkles, Bot, X, ArrowLeft } from 'lucide-react';
 
 function AppContent() {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -22,6 +23,16 @@ function AppContent() {
   const [showVerification, setShowVerification] = useState(null);
   const [viewMode, setViewMode] = useState('web');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // --- 1. PERSISTENT LOGIN (Token check) ---
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    if (savedUser && token) {
+      setCurrentUser(JSON.parse(savedUser));
+    }
+  }, []);
 
   const handleUserTypeSelect = (userType) => {
     if (userType === 'admin') {
@@ -32,68 +43,92 @@ function AppContent() {
   };
 
   const handleAdminLogin = () => {
-    const adminUser = {
-      id: 'admin1',
-      type: 'admin',
-      name: 'Admin User',
-      email: 'admin@skillora.com',
-      phone: '+92 300 0000000',
-      verified: true,
-      rating: 5,
-      totalReviews: 0,
-    };
+    const adminUser = { id: 'admin1', type: 'admin', name: 'Admin User', verified: true };
     setCurrentUser(adminUser);
+    localStorage.setItem('user', JSON.stringify(adminUser));
     setShowAdminLogin(false);
   };
 
-  const handleVerificationComplete = () => {
-    const demoUser = {
-      id: Math.random().toString(36).substr(2, 9),
-      type: showVerification,
-      name: showVerification === 'client' ? 'John Smith' : showVerification === 'manufacturer' ? 'ABC Manufacturing' : 'Ahmed Khan',
-      email: 'demo@skillora.com',
-      phone: '+92 300 1234567',
-      cnic: '12345-1234567-1',
-      verified: true,
-      rating: 4.8,
-      totalReviews: 125,
-      skills: showVerification === 'labour' ? ['Stitching', 'Pattern Making'] : undefined,
-      rate: showVerification === 'labour' ? 650 : undefined,
-    };
-    setCurrentUser(demoUser);
-    setShowVerification(null);
+  // --- 2. LOGIN HANDLER (Naya function) ---
+  const handleLogin = async (loginData) => {
+    try {
+      const response = await fetch('http://localhost:5003/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginData)
+      });
+      const data = await response.json();
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        // Role normalize kar rahe hain taake switch case chale
+        const userData = { ...data.user, type: data.user.role.toLowerCase() };
+        setCurrentUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setShowAdminLogin(false);
+      } else {
+        alert(data.message || "Login fail ho gaya");
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+    }
+  };
+
+  // --- 3. REGISTRATION / VERIFICATION COMPLETE ---
+  const handleVerificationComplete = async (formData) => { 
+    try {
+      // Backend expects 'Labor' or 'Labour'. Hum pehle letter ko capital kar dete hain.
+      let formattedRole = showVerification.charAt(0).toUpperCase() + showVerification.slice(1);
+      
+      const response = await fetch('http://localhost:5003/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, role: formattedRole })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        localStorage.setItem('token', data.token);
+        // Type set karte waqt spelling fix
+        let userType = data.user.role.toLowerCase();
+        const userData = { ...data.user, type: userType };
+        
+        setCurrentUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setShowVerification(null);
+      } else {
+        alert(data.message || "Registration fail!");
+      }
+    } catch (error) { 
+      console.error("Registration Error:", error); 
+    }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     setShowVerification(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
+  // --- 4. DASHBOARD VIEW (Role Match Fix) ---
   const renderDashboardView = () => {
-    if (showAdminLogin) {
-      return <AdminLogin onLogin={handleAdminLogin} onBack={() => setShowAdminLogin(false)} />;
-    }
-
-    if (showVerification) {
-      return (
-        <CompleteEnhancedRegistrationForm
-          userType={showVerification}
-          onComplete={handleVerificationComplete}
-          onBack={() => setShowVerification(null)}
-        />
-      );
-    }
-
-    if (!currentUser) {
-      return <LandingPage onUserTypeSelect={handleUserTypeSelect} />;
-    }
+    if (showAdminLogin) return <AdminLogin onLogin={handleAdminLogin} onBack={() => setShowAdminLogin(false)} />;
+    
+    // Yahan LandingPage par login handler pass kiya hai
+    if (!currentUser && !showVerification) return <LandingPage onUserTypeSelect={handleUserTypeSelect} onLogin={handleLogin} />;
+    
+    if (showVerification) return <CompleteEnhancedRegistrationForm userType={showVerification} onComplete={handleVerificationComplete} onBack={() => setShowVerification(null)} />;
 
     switch (currentUser.type) {
       case 'client': return <ClientDashboard user={currentUser} onLogout={handleLogout} />;
       case 'manufacturer': return <ManufacturerDashboard user={currentUser} onLogout={handleLogout} />;
-      case 'labour': return <LabourDashboard user={currentUser} onLogout={handleLogout} />;
+      // Dono spellings handle kar li hain taake koi error na aaye
+      case 'labour': 
+      case 'labor': 
+        return <LabourDashboard user={currentUser} onLogout={handleLogout} />;
       case 'admin': return <EnhancedAdminDashboard onLogout={handleLogout} />;
-      default: return null;
+      default: return <LandingPage onUserTypeSelect={handleUserTypeSelect} onLogin={handleLogin} />;
     }
   };
 
@@ -101,87 +136,55 @@ function AppContent() {
     if (viewMode === 'diagram') return <SkilloraClassDiagram />;
     if (viewMode === 'escrow') return <EscrowDemoPage />;
     if (viewMode === 'ai-demo') return <AIFeaturesDemo onBack={() => setViewMode('web')} />;
-    
-    if (viewMode === 'mobile') {
-      return (
-        <MobileApp 
-          onBack={() => setViewMode('web')} 
-          currentUser={currentUser} 
-          renderContent={renderDashboardView} 
-        />
-      );
-    }
-
+    if (viewMode === 'mobile') return <MobileApp onBack={() => setViewMode('web')} currentUser={currentUser} renderContent={renderDashboardView} />;
     return renderDashboardView();
   };
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark bg-slate-900 text-white' : 'bg-slate-50 text-slate-900'}`}>
       
-      {renderMainContent()}
+      {!isChatOpen && renderMainContent()}
+      {!isChatOpen && <EscrowFlowDemoButton />}
       
-      {/* Escrow Demo Button (Left Side logic handled inside the component or here) */}
-      <EscrowFlowDemoButton />
-      
-      {/* Fixed Floating Action Buttons (Right Side) - Updated Styling */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-[9999]">
-        
-        {/* Back to Web Button (Only visible in special modes) */}
-        {viewMode !== 'web' && (
+      {!isChatOpen && (
+        <div className="fixed bottom-6 right-6 flex flex-col gap-4 z-[9999]">
           <button
-            onClick={() => setViewMode('web')}
-            className="size-14 rounded-full bg-black text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 border border-white/20"
-            title="Back to Web View"
+            onClick={() => setIsChatOpen(true)}
+            className="size-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 bg-gradient-to-tr from-blue-700 to-blue-400 border-4 border-white dark:border-slate-800"
           >
-            <Monitor className="size-6 text-white" />
+            <Bot className="size-9 text-white" />
           </button>
-        )}
 
-        {/* Theme Toggle Button - Styled Black with White Icon */}
-        <button
-          onClick={toggleTheme}
-          className="size-14 rounded-full bg-black text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 border border-white/20"
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          {isDarkMode ? <Sun className="size-6 text-white" /> : <Moon className="size-6 text-white" />}
-        </button>
+          <div className="flex flex-col gap-2 items-center">
+            <button onClick={toggleTheme} className="size-12 rounded-full bg-slate-800 text-white shadow-lg flex items-center justify-center">
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <button onClick={() => setViewMode('mobile')} className="size-12 rounded-full bg-slate-800 text-white shadow-lg flex items-center justify-center">
+              <Smartphone size={20} />
+            </button>
+          </div>
+        </div>
+      )}
 
-        {/* Mobile View Toggle - Styled Black with White Icon */}
-        {viewMode === 'web' && (
-          <button
-            onClick={() => setViewMode('mobile')}
-            className="size-14 rounded-full bg-black text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 border border-white/20"
-            title="Switch to Mobile App View"
-          >
-            <Smartphone className="size-6 text-white" />
-          </button>
-        )}
-
-        {/* AI Features Demo Button - Styled Black with White Icon */}
-        <button
-          onClick={() => setViewMode('ai-demo')}
-          className="size-14 rounded-full bg-black text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 border border-white/20"
-          title="View AI Features Demo"
-        >
-          <Sparkles className="size-6 text-white" />
-        </button>
-      </div>
+      {isChatOpen && (
+        <div className="fixed inset-0 z-[10000] bg-white dark:bg-slate-900 flex flex-col">
+          <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
+            <button onClick={() => setIsChatOpen(false)} className="flex items-center gap-2">
+              <ArrowLeft size={24} /> <span>Back to Platform</span>
+            </button>
+            <X size={24} onClick={() => setIsChatOpen(false)} className="cursor-pointer" />
+          </div>
+          <iframe src="http://localhost:8501/?embed=true" className="w-full h-full border-none" title="Legal AI Assistant" />
+        </div>
+      )}
     </div>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <ThemeProvider>
       <AppContent />
     </ThemeProvider>
   );
 }
-
-export default App;
-
-/*
-This file is the main application controller (App component) that manages routing, user flow, dashboards, and UI modes.
-It is both web and mobile related, but primarily web-based with a mobile view simulation included. 
-All TypeScript types/interfaces/generics removed. Pure JSX/JS ready.
-*/

@@ -55,7 +55,8 @@ function AnimatedNumber({ value, duration = 2000 }) {
   return <span>{count.toLocaleString()}+</span>;
 }
 
-export function LandingPage({ onUserTypeSelect }) {
+// Pehle sirf onUserTypeSelect tha, ab onLogin bhi add karein
+export function LandingPage({ onUserTypeSelect, onLogin }) {
   const { isDarkMode, toggleTheme } = useTheme();
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,7 +110,9 @@ export function LandingPage({ onUserTypeSelect }) {
     setSelectedProfileType(type);
     setShowTopRated(null);
   };
-
+  
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   // Dummy Data
   const dummyClients = [
     { id: 1, name: 'Fashion Hub Ltd', type: 'Textile Orders', rating: 4.8, orders: 45 },
@@ -684,52 +687,61 @@ onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
 
       {/* Login Modal */}
 {showLogin && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className={`${isDarkMode ? 'bg-[#1F2933] border-gray-700' : 'bg-white border-gray-200'} border rounded-2xl max-w-md w-full p-8`}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className={`text-2xl ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>Login</h2>
-              <button onClick={() => setShowLogin(false)}>
-                <X className={`size-6 ${isDarkMode ? 'text-gray-400 hover:text-[#F9FAFB]' : 'text-gray-500 hover:text-[#1F2933]'}`} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="email" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Email</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="your.email@example.com" 
-                  className={`${isDarkMode ? 'bg-[#2A3642] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`} 
-                />
-              </div>
-              <div>
-                <Label htmlFor="password" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Password</Label>
-                <Input 
-                  id="password" 
-                  type="password" 
-                  placeholder="Enter your password" 
-                  className={`${isDarkMode ? 'bg-[#2A3642] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`} 
-                />
-              </div>
-              <Button className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white">
-                Login
-              </Button>
-              <div className="text-center">
-                <button 
-                  onClick={() => {
-                    setShowLogin(false);
-                    setShowRoleSelection(true);
-                  }}
-                  className="text-sm text-[#2563EB] hover:text-[#1d4ed8]"
-                >
-                  Don't have an account? Sign Up
-                </button>
-              </div>
-            </div>
-          </div>
+  <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <div className={`${isDarkMode ? 'bg-[#1F2933] border-gray-700' : 'bg-white border-gray-200'} border rounded-2xl max-w-md w-full p-8`}>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className={`text-2xl ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>Login</h2>
+        <button onClick={() => setShowLogin(false)}>
+          <X className={`size-6 ${isDarkMode ? 'text-gray-400 hover:text-[#F9FAFB]' : 'text-gray-500 hover:text-[#1F2933]'}`} />
+        </button>
+      </div>
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="email" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Email</Label>
+          <Input 
+            id="email" 
+            type="email" 
+            value={loginEmail} // Yeh add kiya
+            onChange={(e) => setLoginEmail(e.target.value)} // Yeh add kiya
+            placeholder="your.email@example.com" 
+            className={`${isDarkMode ? 'bg-[#2A3642] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`} 
+          />
         </div>
-      )}
+        <div>
+          <Label htmlFor="password" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Password</Label>
+          <Input 
+            id="password" 
+            type="password" 
+            value={loginPassword} // Yeh add kiya
+            onChange={(e) => setLoginPassword(e.target.value)} // Yeh add kiya
+            placeholder="Enter your password" 
+            className={`${isDarkMode ? 'bg-[#2A3642] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`} 
+          />
+        </div>
+        
+        {/* Button par onClick logic add ki */}
+        <Button 
+          onClick={() => onLogin({ email: loginEmail, password: loginPassword })}
+          className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white"
+        >
+          Login
+        </Button>
 
+        <div className="text-center">
+          <button 
+            onClick={() => {
+              setShowLogin(false);
+              setShowRoleSelection(true);
+            }}
+            className="text-sm text-[#2563EB] hover:text-[#1d4ed8]"
+          >
+            Don't have an account? Sign Up
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       {/* Help Modal */}
 {showHelp && <EnhancedHelpOverlay onClose={() => setShowHelp(false)} />}
 

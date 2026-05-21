@@ -13,7 +13,9 @@ import {
   MessageSquare, 
   Edit,
   CheckCircle,
-  Factory
+  Factory,
+  AlertTriangle,
+  CreditCard
 } from 'lucide-react';
 import { ManufacturerListModal } from './ManufacturerListModal';
 import { ChatModal } from './ChatModal';
@@ -21,6 +23,7 @@ import { ReviewSubmissionModal } from './ReviewSubmissionModal';
 import { AIAnalysisModal } from './AIAnalysisModal';
 import { ReviewWarningModal } from './ReviewWarningModal';
 import { ProfileViewWithReview } from './ProfileReview';
+import { DisputeModal } from './DisputeManagementModal';
 
 export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -29,6 +32,7 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
   const [rating, setRating] = useState(0);
   const [showManufacturerList, setShowManufacturerList] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showDeliveryDecision, setShowDeliveryDecision] = useState(false);
   
   // Review System States
   const [showReviewSubmission, setShowReviewSubmission] = useState(false);
@@ -37,8 +41,18 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
   const [showProfileView, setShowProfileView] = useState(false);
   const [reviewData, setReviewData] = useState(null);
   const [aiAnalysisResult, setAIAnalysisResult] = useState(null);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
 
-  const escrowProgress = (order.escrowStatus.released / order.escrowStatus.total) * 100;
+  const escrowTotal = order.escrowStatus?.total || order.budget || 0;
+  const escrowDeposited = order.escrowStatus?.deposited || 0;
+  const escrowReleased = order.escrowStatus?.released || 0;
+  const advanceRelease = Math.round(escrowTotal * 0.3);
+  const finalRelease = escrowTotal - advanceRelease;
+  const escrowProgress = escrowTotal > 0 ? (escrowReleased / escrowTotal) * 100 : 0;
+  const reviewTargetName = userType === 'client'
+    ? order.manufacturer?.name || 'Manufacturer'
+    : order.client?.name || order.clientName || 'Client';
+  const reviewTargetRole = userType === 'client' ? 'manufacturer' : 'client';
 
   const handleUpdateQuantity = () => {
     if (onUpdate) {
@@ -58,6 +72,54 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
       onUpdate({ status: 'completed' });
     }
     alert('Order marked as completed! Awaiting client confirmation for final payment release.');
+  };
+
+  const handleConfirmOrderAndPay = () => {
+    if (onUpdate) {
+      onUpdate({
+        status: 'in-progress',
+        escrowStatus: {
+          total: escrowTotal,
+          deposited: escrowTotal,
+          released: advanceRelease
+        },
+        escrowNotification: 'Client paid full order amount to escrow. 30% advance released to manufacturer.'
+      });
+    }
+    alert(`Order confirmed. Full payment PKR ${escrowTotal.toLocaleString()} is now in escrow and 30% advance has been released to the manufacturer.`);
+  };
+
+  const handleDeliveryDecision = (decision) => {
+    if (decision === 'success') {
+      if (onUpdate) {
+        onUpdate({
+          status: 'completed',
+          deliveryStatus: 'successful',
+          escrowStatus: {
+            total: escrowTotal,
+            deposited: escrowTotal,
+            released: escrowTotal
+          },
+          escrowNotification: `Successful delivery confirmed. Escrow notified to release remaining 70% (PKR ${finalRelease.toLocaleString()}) to manufacturer.`
+        });
+      }
+      alert(`Successful delivery confirmed. Escrow notified and remaining 70% (PKR ${finalRelease.toLocaleString()}) will be released to the manufacturer.`);
+      return;
+    }
+
+    if (onUpdate) {
+      onUpdate({
+        status: 'disputed',
+        deliveryStatus: 'failed',
+        escrowStatus: {
+          total: escrowTotal,
+          deposited: escrowDeposited,
+          released: escrowReleased
+        },
+        escrowNotification: 'Failed delivery reported. Escrow notified to hold remaining funds for review.'
+      });
+    }
+    alert('Failed delivery reported. Escrow has been notified to hold the remaining payment for review.');
   };
 
   // New: Handle Confirm Delivery - Triggers Review Flow
@@ -208,6 +270,12 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
                     <div>PKR {order.escrowStatus.released.toLocaleString()}</div>
                   </div>
                 </div>
+                {order.escrowNotification && (
+                  <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                    <Wallet className="size-4 mt-0.5 flex-shrink-0" />
+                    <span>{order.escrowNotification}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -253,6 +321,16 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
                 </Button>
               )}
 
+              {userType === 'client' && order.status === 'pending' && (
+                <Button
+                  onClick={handleConfirmOrderAndPay}
+                  className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8]"
+                >
+                  <CreditCard className="size-4 mr-2" />
+                  Confirm Order & Pay
+                </Button>
+              )}
+
               {order.manufacturer && (
                 <Button variant="outline" className="flex-1" onClick={() => setShowChat(true)}>
                   <MessageSquare className="size-4 mr-2" />
@@ -263,18 +341,18 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
               {/* NEW: Confirm Delivery Button for Client on In-Progress Orders */}
               {userType === 'client' && order.status === 'in-progress' && (
                 <Button 
-                  onClick={handleConfirmDelivery}
+                  onClick={() => setShowDeliveryDecision(!showDeliveryDecision)}
                   className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8]"
                 >
                   <CheckCircle className="size-4 mr-2" />
-                  Confirm Delivery
+                  Delivery Decision
                 </Button>
               )}
 
               {order.status === 'completed' && !showRating && (
-                <Button onClick={() => setShowRating(true)} className="flex-1">
+                <Button onClick={() => setShowReviewSubmission(true)} className="flex-1">
                   <Star className="size-4 mr-2" />
-                  Rate & Review
+                  Submit Review
                 </Button>
               )}
 
@@ -284,14 +362,51 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
                   Mark as Completed
                 </Button>
               )}
+
+              {(userType === 'client' || userType === 'manufacturer') && order.status === 'in-progress' && (
+                <Button
+                  variant="outline"
+                  className="flex-1 border-red-300 text-red-700 hover:bg-red-50"
+                  onClick={() => setShowDisputeModal(true)}
+                >
+                  <AlertTriangle className="size-4 mr-2" />
+                  Raise Dispute
+                </Button>
+              )}
             </div>
+
+            {userType === 'client' && order.status === 'in-progress' && showDeliveryDecision && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <h4 className="mb-2">Delivery Result</h4>
+                <p className="mb-4 text-sm text-gray-600">
+                  Successful delivery escrow ko notify karegi aur remaining 70% manufacturer ko release ho jayegi. Failed delivery par payment hold rahegi.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Button
+                    onClick={() => handleDeliveryDecision('success')}
+                    className="bg-green-600 text-white hover:bg-green-700"
+                  >
+                    <CheckCircle className="size-4 mr-2" />
+                    Successful Delivery
+                  </Button>
+                  <Button
+                    onClick={() => handleDeliveryDecision('failed')}
+                    variant="outline"
+                    className="border-red-300 text-red-700 hover:bg-red-50"
+                  >
+                    <AlertTriangle className="size-4 mr-2" />
+                    Failed Delivery
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Info */}
             {order.status === 'pending' && order.escrowStatus.deposited === 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-sm text-yellow-800">
                   {userType === 'client' 
-                    ? 'Deposit funds to escrow to start this order. 30% will be released to manufacturer immediately.'
+                    ? 'Confirm Order & Pay se full amount escrow mein deposit ho gi. Manufacturer ko 30% advance release ho ga aur 70% delivery decision tak hold rahe ga.'
                     : 'Waiting for client to deposit funds to escrow before you can start work.'}
                 </p>
               </div>
@@ -316,11 +431,12 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
       )}
 
       {/* Review Flow Modals */}
-      {showReviewSubmission && order.manufacturer && (
+      {showReviewSubmission && (
         <ReviewSubmissionModal
           onClose={() => setShowReviewSubmission(false)}
           onSubmit={handleReviewSubmit}
-          manufacturerName={order.manufacturer.name}
+          targetName={reviewTargetName}
+          targetRole={reviewTargetRole}
           orderId={order.id}
         />
       )}
@@ -382,6 +498,20 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
             sentiment: aiAnalysisResult.sentiment
           }}
           previousTrustScore={85}
+        />
+      )}
+
+      {showDisputeModal && (
+        <DisputeModal
+          onClose={() => setShowDisputeModal(false)}
+          orderId={order.id}
+          orderTitle={order.title}
+          onSubmitted={(updates) => {
+            if (onUpdate) {
+              onUpdate(updates);
+            }
+            setShowDisputeModal(false);
+          }}
         />
       )}
     </>

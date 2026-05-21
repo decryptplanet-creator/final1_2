@@ -87,6 +87,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
       budget: 800000,
       deadline: '2025-12-18',
       status: 'in-progress',
+      clientName: 'Fashion House Ltd',
       manufacturer: {
         id: user.id,
         name: user.name,
@@ -116,6 +117,12 @@ export function ManufacturerDashboard({ user, onLogout }) {
       }
     };
     setAcceptedOrders([...acceptedOrders, updatedOrder]);
+  };
+
+  const handleUpdateAcceptedOrder = (orderId, updates) => {
+    setAcceptedOrders(acceptedOrders.map(order => (
+      order.id === orderId ? { ...order, ...updates } : order
+    )));
   };
 
   const getFilteredOrders = () => {
@@ -417,7 +424,10 @@ export function ManufacturerDashboard({ user, onLogout }) {
           order={selectedOrder}
           userType="manufacturer"
           onClose={() => setSelectedOrder(null)}
-          onUpdate={() => setSelectedOrder(null)}
+          onUpdate={(updates) => {
+            handleUpdateAcceptedOrder(selectedOrder.id, updates);
+            setSelectedOrder(null);
+          }}
           onAccept={() => {
             handleAcceptOrder(selectedOrder);
             setSelectedOrder(null);

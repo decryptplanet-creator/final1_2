@@ -131,6 +131,7 @@ export function ClientDashboard({ user, onLogout }) {
     if (activeTab === 'pending') return orders.filter(o => o.status === 'pending');
     if (activeTab === 'in-progress') return orders.filter(o => o.status === 'in-progress');
     if (activeTab === 'completed') return orders.filter(o => o.status === 'completed');
+    if (activeTab === 'disputed') return orders.filter(o => o.status === 'disputed');
     return orders;
   };
 
@@ -341,7 +342,7 @@ export function ClientDashboard({ user, onLogout }) {
         </div>
 
         <div className="flex gap-6 mb-6 border-b border-gray-200">
-          {['all', 'pending', 'in-progress', 'completed'].map((tab) => (
+          {['all', 'pending', 'in-progress', 'completed', 'disputed'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -365,6 +366,7 @@ export function ClientDashboard({ user, onLogout }) {
                       <Badge className={
                         order.status === 'completed' ? 'bg-[#2563EB]/20 text-[#2563EB] border-[#2563EB]/30' : 
                         order.status === 'in-progress' ? 'bg-[#2563EB]/20 text-[#2563EB] border-[#2563EB]/30' : 
+                        order.status === 'disputed' ? 'bg-red-50 text-red-700 border-red-200' :
                         'bg-gray-100 text-gray-600 border-gray-300'
                       }>
                         {order.status}
