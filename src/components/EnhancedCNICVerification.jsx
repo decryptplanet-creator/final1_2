@@ -71,18 +71,40 @@ export function EnhancedCNICVerification({ onVerificationComplete, onBack }) {
   // Webcam handlers
   const startWebcam = async () => {
     try {
+      setError(null);
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser.');
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
       });
+
       setWebcamStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
     } catch (err) {
       console.error('Webcam error:', err);
-      setError('Could not access webcam. Please upload a photo instead.');
+      const message = err?.name === 'NotAllowedError'
+        ? 'Camera permission denied. Please allow camera access in your browser.'
+        : err?.name === 'NotFoundError'
+          ? 'No camera found. Please connect a webcam or use a different device.'
+          : 'Could not access webcam. Please upload a photo instead.';
+      setError(message);
     }
   };
+
+  useEffect(() => {
+    if (webcamStream && videoRef.current) {
+      videoRef.current.srcObject = webcamStream;
+      videoRef.current.muted = true;
+      videoRef.current.playsInline = true;
+      videoRef.current
+        .play()
+        .catch((err) => {
+          console.warn('Video play failed:', err);
+          setError('Camera initialized, but video playback failed. Please try again.');
+        });
+    }
+  }, [webcamStream]);
 
   const stopWebcam = () => {
     if (webcamStream) {
@@ -412,6 +434,7 @@ export function EnhancedCNICVerification({ onVerificationComplete, onBack }) {
               <video
                 ref={videoRef}
                 autoPlay
+                muted
                 playsInline
                 className="w-full h-full object-cover"
               />
@@ -485,6 +508,7 @@ export function EnhancedCNICVerification({ onVerificationComplete, onBack }) {
           <Input
             type="file"
             accept="image/*"
+            capture="user"
             className="hidden"
             id="selfie-upload-alt"
             onChange={(e) => {

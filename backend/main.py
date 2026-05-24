@@ -80,6 +80,22 @@ async def verify_cnic(request: VerificationRequest):
             face_comparison_result=face_result,
             user_input=request
         )
+
+        print(
+            "Verification score breakdown:",
+            {
+                "final_decision": verification_result.final_decision,
+                "final_score": verification_result.final_score,
+                "text_match": verification_result.text_match_score.model_dump(),
+                "face_match": verification_result.face_match_score.model_dump(),
+                "layout": verification_result.layout_score.model_dump(),
+                "chip": verification_result.chip_score.model_dump(),
+                "tampering": verification_result.tampering_score.model_dump(),
+                "ocr_confidence": verification_result.ocr_confidence_score.model_dump(),
+                "ocr_result": ocr_result.model_dump(),
+                "face_result": face_result.model_dump(),
+            }
+        )
         
         detailed_report = scoring_engine.get_detailed_report(verification_result)
         

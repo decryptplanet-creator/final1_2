@@ -52,6 +52,9 @@ class FaceService:
             image = decode_base64_image(image_data)
             if not is_selfie:
                 image = preprocess_cnic_image(image)
+                photo_region = extract_photo_region(image)
+                if photo_region is not None and photo_region.size > 0:
+                    image = photo_region
             
             # Use OpenCV for fast detection
             face_result = self._opencv_face_detection(image)
@@ -99,6 +102,13 @@ class FaceService:
             cnic_img = decode_base64_image(cnic_image_data)
             selfie_img = decode_base64_image(selfie_image_data)
             cnic_img = preprocess_cnic_image(cnic_img)
+
+            # Extract only the portrait area from CNIC front
+            cnic_face_region = extract_photo_region(cnic_img)
+            if cnic_face_region is not None and cnic_face_region.size > 0:
+                cnic_img = cnic_face_region
+            else:
+                print("Warning: CNIC face region extraction failed, using full CNIC image for comparison.")
 
             # 3. Save to temp files for DeepFace to read
             path1 = _save_image_temp_jpg(cnic_img)

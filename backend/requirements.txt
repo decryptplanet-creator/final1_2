@@ -13,3 +13,5 @@ aiofiles>=23.0.0
 scikit-image>=0.21.0
 scipy>=1.11.0
 deepface>=0.0.90
+tf-keras>=2.20.0
+protobuf>=6.31.1,<7.0.0

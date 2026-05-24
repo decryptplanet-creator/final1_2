@@ -3,8 +3,8 @@ import numpy as np
 from typing import Dict, Any
 from skimage import io, filters, feature
 from scipy import ndimage
-from app.schemas import TamperingDetectionResult
-from app.utils.image_preprocessor import decode_base64_image, preprocess_cnic_image
+from ..schemas import TamperingDetectionResult
+from ..utils.image_preprocessor import decode_base64_image, preprocess_cnic_image
 
 
 class TamperingDetector:
