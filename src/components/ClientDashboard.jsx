@@ -53,6 +53,7 @@ export function ClientDashboard({ user, onLogout }) {
   const [showSearch, setShowSearch] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [selectedChat, setSelectedChat] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -127,6 +128,33 @@ export function ClientDashboard({ user, onLogout }) {
     setOrders(orders.map(order => order.id === orderId ? { ...order, ...updates } : order));
   };
 
+  const getCurrentUserId = () => user.id || user._id || currentUser?.id || currentUser?._id || 'client_user';
+
+  const openChat = ({ receiverId, receiverName, orderId } = {}) => {
+    setSelectedChat({
+      receiverId: receiverId || 'support',
+      receiverName: receiverName || 'Skillora Support',
+      orderId: orderId || `general_${getCurrentUserId()}`
+    });
+    setShowChat(true);
+  };
+
+  const openChatWithProfile = (profile) => {
+    openChat({
+      receiverId: profile?.id || profile?._id,
+      receiverName: profile?.name || 'Manufacturer',
+      orderId: `profile_${profile?.id || profile?._id || 'general'}`
+    });
+  };
+
+  const openChatForOrder = (order) => {
+    openChat({
+      receiverId: order.manufacturer?.id,
+      receiverName: order.manufacturer?.name || 'Manufacturer',
+      orderId: order.id
+    });
+  };
+
   const getFilteredOrders = () => {
     if (activeTab === 'pending') return orders.filter(o => o.status === 'pending');
     if (activeTab === 'in-progress') return orders.filter(o => o.status === 'in-progress');
@@ -160,7 +188,7 @@ export function ClientDashboard({ user, onLogout }) {
               <Button variant="ghost" size="icon" onClick={() => setShowEmail(true)} title="Email" className="text-[#2563EB] hover:bg-[#2563EB]/10">
                 <Mail className="size-5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setShowChat(true)} title="Messages" className="text-[#2563EB] hover:bg-[#2563EB]/10">
+              <Button variant="ghost" size="icon" onClick={() => openChat()} title="Messages" className="text-[#2563EB] hover:bg-[#2563EB]/10">
                 <MessageSquare className="size-5" />
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} title="Settings" className="text-[#2563EB] hover:bg-[#2563EB]/10">
@@ -215,7 +243,7 @@ export function ClientDashboard({ user, onLogout }) {
             setSelectedProfileUser(profileUser);
             setShowProfile(true);
           }}
-          onChatClick={() => setShowChat(true)}
+          onChatClick={openChatWithProfile}
           onViewAllClick={() => setShowViewAll('manufacturer')}
         />
 
@@ -426,6 +454,16 @@ export function ClientDashboard({ user, onLogout }) {
                     <FileText className="size-4 mr-2" />
                     View Details
                   </Button>
+                  {order.manufacturer && (
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-gray-300 text-[#1F2933] hover:bg-gray-50"
+                      onClick={() => openChatForOrder(order)}
+                    >
+                      <MessageSquare className="size-4 mr-2" />
+                      Chat
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -447,16 +485,19 @@ export function ClientDashboard({ user, onLogout }) {
         <ProfileModal 
           user={selectedProfileUser || user} 
           onClose={() => { setShowProfile(false); setSelectedProfileUser(null); }} 
-          onChatClick={() => { setShowProfile(false); setShowChat(true); }} 
+          onChatClick={() => { setShowProfile(false); openChatWithProfile(selectedProfileUser || user); }} 
         />
       )}
       {showChat && (
   <ChatModule 
-    currentUserId={user.id || user._id} 
-    receiverId="user_01" 
-    receiverName="Manufacturer" 
-    orderId="order_01" 
-    onClose={() => setShowChat(false)} 
+    currentUserId={getCurrentUserId()} 
+    receiverId={selectedChat?.receiverId} 
+    receiverName={selectedChat?.receiverName} 
+    orderId={selectedChat?.orderId} 
+    onClose={() => {
+      setShowChat(false);
+      setSelectedChat(null);
+    }} 
   />
 )}
       {showNotifications && <NotificationsModal onClose={() => setShowNotifications(false)} />}

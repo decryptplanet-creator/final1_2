@@ -3,7 +3,8 @@ import axios from 'axios';
 import io from 'socket.io-client';
 import { Send, X, Loader2, AlertTriangle, Lock, User, Paperclip, Camera, Image, FileText } from 'lucide-react';
 
-const socket = io("http://localhost:5001");
+const CHAT_SERVER_URL = (import.meta.env.VITE_CHAT_API_URL || "http://localhost:5001").replace(/\/$/, "");
+const socket = io(CHAT_SERVER_URL);
 
 export default function ChatModule({ 
   currentUserId = "user_02", 
@@ -24,14 +25,58 @@ export default function ChatModule({
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   
-  const API_URL = "http://localhost:5001/api/messages";
+  const API_URL = `${CHAT_SERVER_URL}/api/messages`;
+
+  const normalizeId = (value) => String(value || "");
+
+  const isMessageForCurrentChat = (message) => {
+    const messageOrderId = normalizeId(message.orderId);
+    const sender = normalizeId(message.sender);
+    const receiver = normalizeId(message.receiver);
+    const currentSender = normalizeId(currentUserId);
+    const currentReceiver = normalizeId(receiverId);
+
+    const isSameOrder = messageOrderId === normalizeId(orderId);
+    const isBetweenCurrentUsers =
+      (sender === currentSender && receiver === currentReceiver) ||
+      (sender === currentReceiver && receiver === currentSender);
+
+    return isSameOrder && isBetweenCurrentUsers;
+  };
+
+  const getConversationId = () => {
+    const users = [normalizeId(currentUserId), normalizeId(receiverId)].sort();
+    return `${normalizeId(orderId)}_${users[0]}_${users[1]}`;
+  };
+
+  const addMessageIfNew = (incomingMessage) => {
+    if (!isMessageForCurrentChat(incomingMessage)) return;
+
+    setMessages((prev) => {
+      const alreadyExists = prev.some((message) => {
+        if (incomingMessage.id || incomingMessage._id) {
+          return message.id === incomingMessage.id || message._id === incomingMessage._id;
+        }
+
+        return (
+          message.sender === incomingMessage.sender &&
+          message.receiver === incomingMessage.receiver &&
+          message.orderId === incomingMessage.orderId &&
+          message.message === incomingMessage.message &&
+          message.createdAt === incomingMessage.createdAt
+        );
+      });
+
+      return alreadyExists ? prev : [...prev, incomingMessage];
+    });
+  };
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         setLoading(true);
         const res = await axios.get(`${API_URL}/${orderId}`);
-        setMessages(res.data);
+        setMessages(Array.isArray(res.data) ? res.data.filter(isMessageForCurrentChat) : []);
       } catch (err) {
         console.error("Fetch Error:", err);
         if (err.response?.status === 403) setIsLocked(true);
@@ -41,12 +86,13 @@ export default function ChatModule({
     fetchHistory();
     socket.emit('join_chat', orderId);
 
-    socket.on('receive_message', (data) => {
-      setMessages((prev) => [...prev, data]);
-    });
+    socket.on('receive_message', addMessageIfNew);
 
-    return () => socket.off('receive_message');
-  }, [orderId]);
+    return () => {
+      socket.emit('leave_chat', orderId);
+      socket.off('receive_message', addMessageIfNew);
+    };
+  }, [currentUserId, receiverId, orderId]);
 
   // --- NAYA FILE HANDLING LOGIC ---
   const handleFileChange = async (e) => {
@@ -61,6 +107,7 @@ export default function ChatModule({
         sender: currentUserId,
         receiver: receiverId,
         orderId: orderId,
+        conversationId: getConversationId(),
         message: file.type.startsWith("image/") ? `IMAGE_DATA:${base64File}` : `FILE_DATA:${file.name}`,
         createdAt: new Date().toISOString()
       };
@@ -68,7 +115,7 @@ export default function ChatModule({
       try {
         const response = await axios.post(API_URL, payload);
         socket.emit('send_message', response.data);
-        setMessages((prev) => [...prev, response.data]);
+        addMessageIfNew(response.data);
         setShowAttachments(false);
       } catch (err) {
         alert("File send nahi ho saki!");
@@ -84,6 +131,7 @@ export default function ChatModule({
       sender: currentUserId,
       receiver: receiverId,
       orderId: orderId,
+      conversationId: getConversationId(),
       message: newMessage,
       createdAt: new Date().toISOString()
     };
@@ -91,7 +139,7 @@ export default function ChatModule({
     try {
       const response = await axios.post(API_URL, payload);
       socket.emit('send_message', response.data);
-      setMessages((prev) => [...prev, response.data]);
+      addMessageIfNew(response.data);
       setNewMessage("");
       setWarning("");
       setShowAttachments(false);
