@@ -426,7 +426,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
           onClose={() => setSelectedOrder(null)}
           onUpdate={(updates) => {
             handleUpdateAcceptedOrder(selectedOrder.id, updates);
-            setSelectedOrder(null);
+            setSelectedOrder((current) => ({ ...current, ...updates }));
           }}
           onAccept={() => {
             handleAcceptOrder(selectedOrder);

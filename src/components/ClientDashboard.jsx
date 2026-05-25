@@ -477,7 +477,10 @@ export function ClientDashboard({ user, onLogout }) {
           order={selectedOrder} 
           userType="client" 
           onClose={() => setSelectedOrder(null)} 
-          onUpdate={(u) => { handleUpdateOrder(selectedOrder.id, u); setSelectedOrder(null); }} 
+          onUpdate={(updates) => {
+            handleUpdateOrder(selectedOrder.id, updates);
+            setSelectedOrder((current) => ({ ...current, ...updates }));
+          }}
         />
       )}
       {showSearch && <SearchModal onClose={() => setShowSearch(false)} userType="client" />}

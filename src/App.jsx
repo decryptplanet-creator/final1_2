@@ -140,6 +140,13 @@ function AppContent() {
     return renderDashboardView();
   };
 
+  const isFrontendHomePage = (
+    viewMode === 'web' &&
+    !currentUser &&
+    !showVerification &&
+    !showAdminLogin
+  );
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark bg-slate-900 text-white' : 'bg-slate-50 text-slate-900'}`}>
       
@@ -148,12 +155,14 @@ function AppContent() {
       
       {!isChatOpen && (
         <div className="fixed bottom-6 right-6 flex flex-col gap-4 z-[9999]">
-          <button
-            onClick={() => setIsChatOpen(true)}
-            className="size-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 bg-gradient-to-tr from-blue-700 to-blue-400 border-4 border-white dark:border-slate-800"
-          >
-            <Bot className="size-9 text-white" />
-          </button>
+          {isFrontendHomePage && (
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="size-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 bg-gradient-to-tr from-blue-700 to-blue-400 border-4 border-white dark:border-slate-800"
+            >
+              <Bot className="size-9 text-white" />
+            </button>
+          )}
 
           <div className="flex flex-col gap-2 items-center">
             <button onClick={toggleTheme} className="size-12 rounded-full bg-slate-800 text-white shadow-lg flex items-center justify-center">

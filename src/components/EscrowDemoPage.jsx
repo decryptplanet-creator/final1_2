@@ -9,11 +9,13 @@ import {
   CheckCircle, 
   FileText,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  X
 } from 'lucide-react';
 import { PlaceOrderModal } from './escrow/PlaceOrderModal';
 import { EscrowPaymentModal } from './escrow/EscrowPaymentModal';
 import { PaymentSuccessModal } from './escrow/PaymentSuccessModal';
+import { PaymentFailureModal } from './escrow/PaymentFailureModal';
 import { ManufacturerOrderDetailsModal } from './escrow/ManufacturerOrderDetailsModal';
 import { OrderReviewModal } from './escrow/OrderReviewModal';
 import { FinalPaymentModal } from './escrow/FinalPaymentModal';
@@ -21,10 +23,11 @@ import { OrderCompletedModal } from './escrow/OrderCompletedModal';
 import { PaymentHistoryModal } from './escrow/PaymentHistoryModal';
 import { useTheme } from '../contexts/ThemeContext';
 
-export function EscrowDemoPage() {
+export function EscrowDemoPage({ onClose }) {
   const { isDarkMode } = useTheme();
   const [currentScreen, setCurrentScreen] = useState('home');
   const [orderData, setOrderData] = useState(null);
+  const [paymentTransaction, setPaymentTransaction] = useState(null);
 
   // Mock data
   const mockOrder = {
@@ -33,6 +36,7 @@ export function EscrowDemoPage() {
     quantity: 500,
     deadline: '2025-02-28',
     totalAmount: 100000,
+    advancePercentage: 30,
     advanceAmount: 30000,
     manufacturerAdvance: 5000,
     clientName: 'ABC Corporation',
@@ -40,6 +44,7 @@ export function EscrowDemoPage() {
     images: [],
     trackingId: 'TRK-SKL-2025-001'
   };
+  const activeOrder = orderData || mockOrder;
 
   const mockTransactions = [
     {
@@ -99,36 +104,43 @@ export function EscrowDemoPage() {
       color: 'text-green-600'
     },
     {
+      id: 'payment-failure',
+      title: '4. Payment Failure',
+      description: 'Failed attempt and retry option',
+      icon: DollarSign,
+      color: 'text-red-600'
+    },
+    {
       id: 'manufacturer-view',
-      title: '4. Manufacturer View',
+      title: '5. Manufacturer View',
       description: 'Manufacturer sees order details',
       icon: Factory,
       color: 'text-[#2563EB]'
     },
     {
       id: 'order-review',
-      title: '5. Client Review',
+      title: '6. Client Review',
       description: 'Review completed work',
       icon: CheckCircle,
       color: 'text-[#2563EB]'
     },
     {
       id: 'final-payment',
-      title: '6. Final Payment',
+      title: '7. Final Payment',
       description: 'Release remaining amount',
       icon: DollarSign,
       color: 'text-[#2563EB]'
     },
     {
       id: 'order-completed',
-      title: '7. Order Complete',
+      title: '8. Order Complete',
       description: 'Funds released, ready to dispatch',
       icon: CheckCircle,
       color: 'text-green-600'
     },
     {
       id: 'payment-history',
-      title: '8. Payment History',
+      title: '9. Payment History',
       description: 'Complete audit trail',
       icon: FileText,
       color: 'text-[#2563EB]'
@@ -154,6 +166,11 @@ export function EscrowDemoPage() {
                 </p>
               </div>
             </div>
+            {onClose && (
+              <Button variant="ghost" size="icon" onClick={onClose} className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                <X className="size-5" />
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -282,18 +299,34 @@ export function EscrowDemoPage() {
         />
       )}
 
-      {currentScreen === 'escrow-payment' && orderData && (
+      {currentScreen === 'escrow-payment' && (
         <EscrowPaymentModal
           onClose={() => setCurrentScreen('home')}
-          orderData={orderData}
-          onPaymentConfirm={() => setCurrentScreen('payment-success')}
+          orderData={activeOrder}
+          onPaymentResult={(result, transaction) => {
+            setPaymentTransaction(transaction);
+            setCurrentScreen(result === 'success' ? 'payment-success' : 'payment-failure');
+          }}
         />
       )}
 
-      {currentScreen === 'payment-success' && orderData && (
+      {currentScreen === 'payment-success' && (
         <PaymentSuccessModal
           onClose={() => setCurrentScreen('home')}
-          orderData={orderData}
+          orderData={activeOrder}
+          transaction={paymentTransaction}
+        />
+      )}
+
+      {currentScreen === 'payment-failure' && (
+        <PaymentFailureModal
+          onClose={() => setCurrentScreen('home')}
+          onRetry={() => setCurrentScreen('escrow-payment')}
+          orderData={activeOrder}
+          transaction={paymentTransaction || {
+            id: 'TXN-DEMO-FAILED',
+            method: 'Debit / Credit Card'
+          }}
         />
       )}
 

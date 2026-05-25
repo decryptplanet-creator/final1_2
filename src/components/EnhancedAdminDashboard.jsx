@@ -3,35 +3,29 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/labelstatus';
 import { Input } from './ui/input';
+import { Textarea } from './ui/textarea input';
 import { 
   LayoutDashboard, Users, AlertTriangle, FileText, ScrollText,
   DollarSign, TrendingUp, CheckCircle, Shield, Search,
   LogOut, Moon, Sun, X, Bell, Clock, MapPin, Download,
   UserCheck, UserX, MessageSquare, Calendar, Filter,
   Eye, Ban, RefreshCw, FileCheck, AlertCircle, ChevronRight,
-  Lock, Unlock
+  Lock, Unlock, Send, Upload
 } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { useTheme } from '../contexts/ThemeContext';
 
 export function EnhancedAdminDashboard({ onLogout }) {
-  const API_BASE_URL = 'http://localhost:5003';
   const { isDarkMode, toggleTheme } = useTheme();
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [showConfirmation, setShowConfirmation] = useState(null);
   const [isResolvingDispute, setIsResolvingDispute] = useState(false);
+  const [adminMessageDraft, setAdminMessageDraft] = useState('');
 
   // Mock Data
-  const stats = {
-    totalTransactions: 2458000,
-    pendingVerifications: 8,
-    activeDisputes: 5,
-    ppcViolations: 3,
-  };
-
-  const pendingUsers = [
+  const [managedUsers, setManagedUsers] = useState([
     {
       id: '1',
       name: 'Textile Industries Ltd',
@@ -43,6 +37,12 @@ export function EnhancedAdminDashboard({ onLogout }) {
       aiStatus: 'uncertain',
       trustScore: 72,
       documents: { cnic: true, affidavit: true, video: true },
+      verificationStatus: 'pending',
+      accountStatus: 'active',
+      activities: [
+        { id: 'a1', label: 'Registration documents submitted', date: '2025-02-20 09:10' },
+        { id: 'a2', label: 'AI verification requires manual review', date: '2025-02-20 09:14' },
+      ],
     },
     {
       id: '2',
@@ -55,6 +55,12 @@ export function EnhancedAdminDashboard({ onLogout }) {
       aiStatus: 'flagged',
       trustScore: 65,
       documents: { cnic: true, affidavit: false, video: true },
+      verificationStatus: 'pending',
+      accountStatus: 'active',
+      activities: [
+        { id: 'a3', label: 'Identity documents submitted', date: '2025-02-21 10:30' },
+        { id: 'a4', label: 'Missing affidavit flagged', date: '2025-02-21 10:34' },
+      ],
     },
     {
       id: '3',
@@ -67,8 +73,21 @@ export function EnhancedAdminDashboard({ onLogout }) {
       aiStatus: 'uncertain',
       trustScore: 78,
       documents: { cnic: true, affidavit: true, video: false },
+      verificationStatus: 'pending',
+      accountStatus: 'blocked',
+      activities: [
+        { id: 'a5', label: 'Registration documents submitted', date: '2025-02-21 13:20' },
+        { id: 'a6', label: 'Account blocked pending video verification', date: '2025-02-21 14:00' },
+      ],
     },
-  ];
+  ]);
+
+  const stats = {
+    totalTransactions: 2458000,
+    pendingVerifications: managedUsers.filter((user) => user.verificationStatus === 'pending').length,
+    activeDisputes: 5,
+    ppcViolations: 3,
+  };
 
   const [disputes, setDisputes] = useState([
     {
@@ -82,6 +101,26 @@ export function EnhancedAdminDashboard({ onLogout }) {
       escalatedDate: '2025-02-18',
       priority: 'high',
       ppcViolation: true,
+      referenceId: 'DSP-104-001',
+      description: 'The received stitching and fabric quality do not match approved samples.',
+      evidence: [
+        { id: 'e1', name: 'damaged-stitching.jpg', submittedBy: 'Fashion House Ltd', date: '2025-02-18' },
+        { id: 'e2', name: 'approved-sample.pdf', submittedBy: 'Fashion House Ltd', date: '2025-02-18' },
+      ],
+      timeline: [
+        { label: 'Dispute raised by client', date: '2025-02-18 09:20', status: 'completed' },
+        { label: 'Evidence uploaded', date: '2025-02-18 09:25', status: 'completed' },
+        { label: 'AI analysis completed', date: '2025-02-18 09:28', status: 'completed' },
+        { label: 'Escalated to admin review', date: '2025-02-18 09:30', status: 'current' },
+      ],
+      aiAnalysis: {
+        recommendation: 'Refund client and review manufacturer quality controls',
+        confidence: 91,
+        findings: ['Images show visible stitching variance.', 'Conversation includes threatening language flagged under PPC policy.'],
+      },
+      adminMessages: [
+        { id: 'm1', sender: 'Admin Support', message: 'Your dispute is under priority review. Escrow funds remain protected.', date: '2025-02-18 10:15' },
+      ],
     },
     {
       id: '2',
@@ -94,6 +133,22 @@ export function EnhancedAdminDashboard({ onLogout }) {
       escalatedDate: '2025-02-19',
       priority: 'medium',
       ppcViolation: false,
+      referenceId: 'DSP-098-002',
+      description: 'Shipment arrived two weeks after the contractual deadline.',
+      evidence: [
+        { id: 'e3', name: 'courier-tracking.pdf', submittedBy: 'Export Co.', date: '2025-02-19' },
+      ],
+      timeline: [
+        { label: 'Dispute raised by client', date: '2025-02-19 11:05', status: 'completed' },
+        { label: 'Evidence uploaded', date: '2025-02-19 11:10', status: 'completed' },
+        { label: 'AI analysis completed', date: '2025-02-19 11:14', status: 'current' },
+      ],
+      aiAnalysis: {
+        recommendation: 'Offer partial refund for delivery delay',
+        confidence: 84,
+        findings: ['Tracking document indicates late delivery.', 'No policy violation detected in communication.'],
+      },
+      adminMessages: [],
     },
     {
       id: '3',
@@ -106,10 +161,29 @@ export function EnhancedAdminDashboard({ onLogout }) {
       escalatedDate: '2025-02-20',
       priority: 'high',
       ppcViolation: true,
+      referenceId: 'DSP-112-003',
+      description: 'Both parties disagree over whether final escrow payment should be released.',
+      evidence: [
+        { id: 'e4', name: 'delivery-acceptance.png', submittedBy: 'Quality Mills', date: '2025-02-20' },
+        { id: 'e5', name: 'client-objection.pdf', submittedBy: 'Global Traders', date: '2025-02-20' },
+      ],
+      timeline: [
+        { label: 'Payment release disputed', date: '2025-02-20 14:10', status: 'completed' },
+        { label: 'Evidence submitted by both parties', date: '2025-02-20 14:44', status: 'completed' },
+        { label: 'Escalated to admin review', date: '2025-02-20 15:00', status: 'current' },
+      ],
+      aiAnalysis: {
+        recommendation: 'Hold funds pending manual delivery verification',
+        confidence: 76,
+        findings: ['Conflicting delivery documents require admin review.', 'Potential PPC-language breach was flagged.'],
+      },
+      adminMessages: [
+        { id: 'm2', sender: 'Admin Support', message: 'Both parties must provide original delivery confirmation documents.', date: '2025-02-20 15:30' },
+      ],
     },
   ]);
 
-  const systemLogs = [
+  const [systemLogs, setSystemLogs] = useState([
     {
       id: '1',
       timestamp: '2025-02-22 10:45:23',
@@ -142,7 +216,47 @@ export function EnhancedAdminDashboard({ onLogout }) {
       details: 'Verification rejected for manufacturer - Invalid documents',
       type: 'verification',
     },
-  ];
+  ]);
+
+  const addSystemLog = (action, details, type = 'verification') => {
+    setSystemLogs((currentLogs) => [
+      {
+        id: `LOG-${Date.now()}`,
+        timestamp: new Date().toLocaleString(),
+        action,
+        admin: 'Admin User',
+        details,
+        type,
+      },
+      ...currentLogs,
+    ]);
+  };
+
+  const updateManagedUser = (userId, updates, activityLabel) => {
+    const updatedAt = new Date().toLocaleString();
+    setManagedUsers((currentUsers) => currentUsers.map((user) => (
+      user.id === userId
+        ? {
+            ...user,
+            ...updates,
+            activities: activityLabel
+              ? [...(user.activities || []), { id: `ACT-${Date.now()}`, label: activityLabel, date: updatedAt }]
+              : user.activities,
+          }
+        : user
+    )));
+    setSelectedUser((current) => (
+      current?.id === userId
+        ? {
+            ...current,
+            ...updates,
+            activities: activityLabel
+              ? [...(current.activities || []), { id: `ACT-${Date.now()}`, label: activityLabel, date: updatedAt }]
+              : current.activities,
+          }
+        : current
+    ));
+  };
 
   const handleApproveUser = (user) => {
     setShowConfirmation({
@@ -150,10 +264,10 @@ export function EnhancedAdminDashboard({ onLogout }) {
       action: 'Approve User',
       message: `Are you sure you want to approve ${user.name}? This will grant them full platform access.`,
       onConfirm: () => {
-        // Simulate approval
+        updateManagedUser(user.id, { verificationStatus: 'verified' }, 'Account verified by admin');
+        addSystemLog('User Verified', `Verified ${user.type}: ${user.name}`);
         setShowConfirmation(null);
-        setSelectedUser(null);
-        alert(`✓ ${user.name} has been approved and notified via email.`);
+        alert(`${user.name} has been approved and notified via email.`);
       },
     });
   };
@@ -164,17 +278,42 @@ export function EnhancedAdminDashboard({ onLogout }) {
       action: 'Reject User',
       message: `Are you sure you want to reject ${user.name}? They will be notified and can reapply.`,
       onConfirm: () => {
+        updateManagedUser(user.id, { verificationStatus: 'rejected' }, 'Verification rejected by admin');
+        addSystemLog('User Rejected', `Verification rejected for ${user.name}`);
         setShowConfirmation(null);
-        setSelectedUser(null);
-        alert(`✗ ${user.name} has been rejected. Rejection notice sent.`);
+        alert(`${user.name} has been rejected. Rejection notice sent.`);
       },
     });
   };
 
   const handleRequestInfo = (user) => {
-    setShowConfirmation(null);
-    setSelectedUser(null);
-    alert(`📧 Information request sent to ${user.name}. They will receive an email with requirements.`);
+    updateManagedUser(user.id, {}, 'Admin requested additional verification information');
+    addSystemLog('Information Requested', `Additional documents requested from ${user.name}`);
+    alert(`Information request sent to ${user.name}. They will receive an email with requirements.`);
+  };
+
+  const handleAccountAccess = (user) => {
+    const isBlocked = user.accountStatus === 'blocked';
+    const nextStatus = isBlocked ? 'active' : 'blocked';
+    const action = isBlocked ? 'Unblock User' : 'Block User';
+    setShowConfirmation({
+      show: true,
+      action,
+      message: `${action} account access for ${user.name}? This action will be recorded in system logs.`,
+      onConfirm: () => {
+        updateManagedUser(
+          user.id,
+          { accountStatus: nextStatus },
+          `Account ${isBlocked ? 'unblocked' : 'blocked'} by admin`
+        );
+        addSystemLog(
+          isBlocked ? 'User Unblocked' : 'User Blocked',
+          `${user.name} account access ${isBlocked ? 'restored' : 'suspended'} by admin`,
+          isBlocked ? 'verification' : 'ppc'
+        );
+        setShowConfirmation(null);
+      },
+    });
   };
 
   const handleResolveDispute = (dispute, action) => {
@@ -188,72 +327,66 @@ export function EnhancedAdminDashboard({ onLogout }) {
       show: true,
       action: action === 'refund' ? 'Refund to Client' : action === 'release' ? 'Release Payment' : 'Suspend Account',
       message: messages[action],
-      onConfirm: async () => {
+      onConfirm: () => {
         setIsResolvingDispute(true);
+        const updatedStatus = action === 'suspend' ? 'ppc-enforced' : 'resolved';
+        const outcome = {
+          refund: `Refund approved for ${dispute.client}.`,
+          release: `Escrow payment approved for release to ${dispute.manufacturer}.`,
+          suspend: 'PPC warning issued and account suspension recorded.',
+        }[action];
+        const updatedDispute = {
+          ...dispute,
+          status: updatedStatus,
+          resolutionAction: action,
+          finalDecision: {
+            action,
+            outcome,
+            decidedBy: 'Admin User',
+            date: new Date().toLocaleString(),
+          },
+          timeline: [
+            ...(dispute.timeline || []),
+            { label: `Final decision: ${outcome}`, date: new Date().toLocaleString(), status: 'completed' },
+          ],
+        };
 
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/dispute/resolve/${dispute.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action,
-              status: action === 'suspend' ? 'ppc-enforced' : 'resolved',
-              orderId: dispute.orderId,
-            }),
-          });
-
-          let data = {};
-          try {
-            data = await response.json();
-          } catch {}
-
-          if (!response.ok) {
-            throw new Error(data.message || data.detail || 'Failed to resolve dispute');
-          }
-
-          const updatedStatus = data.status || (action === 'suspend' ? 'ppc-enforced' : 'resolved');
-
-          setDisputes((currentDisputes) =>
-            currentDisputes.map((item) =>
-              item.id === dispute.id
-                ? {
-                    ...item,
-                    status: updatedStatus,
-                    resolutionAction: action,
-                  }
-                : item
-            )
-          );
-
-          if (selectedDispute?.id === dispute.id) {
-            setSelectedDispute((current) =>
-              current
-                ? {
-                    ...current,
-                    status: updatedStatus,
-                    resolutionAction: action,
-                  }
-                : null
-            );
-          }
-
-          setShowConfirmation(null);
-          setSelectedDispute(null);
-
-          const actionMessages = {
-            refund: `Refund completed for ${dispute.client}.`,
-            release: `Payment released to ${dispute.manufacturer}.`,
-            suspend: `PPC enforcement recorded for this dispute.`,
-          };
-
-          alert(data.message || actionMessages[action]);
-        } catch (error) {
-          alert(error.message || 'Unable to resolve dispute right now.');
-        } finally {
-          setIsResolvingDispute(false);
-        }
+        setDisputes((currentDisputes) => currentDisputes.map((item) => (
+          item.id === dispute.id ? updatedDispute : item
+        )));
+        setSelectedDispute(updatedDispute);
+        setShowConfirmation(null);
+        setIsResolvingDispute(false);
+        alert(outcome);
       },
     });
+  };
+
+  const handleSendAdminMessage = () => {
+    const message = adminMessageDraft.trim();
+    if (!message || !selectedDispute) return;
+
+    const updatedDispute = {
+      ...selectedDispute,
+      adminMessages: [
+        ...(selectedDispute.adminMessages || []),
+        {
+          id: `MSG-${Date.now()}`,
+          sender: 'Admin User',
+          message,
+          date: new Date().toLocaleString(),
+        },
+      ],
+      timeline: [
+        ...(selectedDispute.timeline || []),
+        { label: 'Admin message sent to parties', date: new Date().toLocaleString(), status: 'completed' },
+      ],
+    };
+    setDisputes((currentDisputes) => currentDisputes.map((item) => (
+      item.id === selectedDispute.id ? updatedDispute : item
+    )));
+    setSelectedDispute(updatedDispute);
+    setAdminMessageDraft('');
   };
 
   return (
@@ -324,7 +457,7 @@ export function EnhancedAdminDashboard({ onLogout }) {
               }`}
             >
               <Users className="size-5" />
-              <span>User Verification</span>
+              <span>User Management</span>
               {stats.pendingVerifications > 0 && (
                 <Badge className="ml-auto bg-red-600 text-white">
                   {stats.pendingVerifications}
@@ -552,10 +685,10 @@ export function EnhancedAdminDashboard({ onLogout }) {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
-                  User Verification Hub
+                  User Management
                 </h2>
                 <Badge className="bg-yellow-600/20 text-yellow-400 border-yellow-600/30">
-                  {pendingUsers.length} Pending
+                  {stats.pendingVerifications} Pending Verification
                 </Badge>
               </div>
 
@@ -565,11 +698,11 @@ export function EnhancedAdminDashboard({ onLogout }) {
                   <Card className={isDarkMode ? 'bg-[#2A3642] border-gray-800' : 'bg-white border-gray-200'}>
                     <CardHeader>
                       <CardTitle className={isDarkMode ? 'text-white' : 'text-[#1F2933]'}>
-                        Verification Queue
+                        Managed Users
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {pendingUsers.map((user) => (
+                      {managedUsers.map((user) => (
                         <div
                           key={user.id}
                           onClick={() => setSelectedUser(user)}
@@ -590,13 +723,24 @@ export function EnhancedAdminDashboard({ onLogout }) {
                                 {user.type === 'manufacturer' ? 'Manufacturer' : 'Labour'}
                               </p>
                             </div>
-                            <Badge className={
-                              user.aiStatus === 'uncertain'
-                                ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30'
-                                : 'bg-red-600/20 text-red-400 border-red-600/30'
-                            }>
-                              {user.aiStatus === 'uncertain' ? 'Uncertain' : 'Flagged'}
-                            </Badge>
+                            <div className="flex flex-col items-end gap-1">
+                              <Badge className={
+                                user.verificationStatus === 'verified'
+                                  ? 'bg-green-600/20 text-green-600 border-green-600/30'
+                                  : user.verificationStatus === 'rejected'
+                                  ? 'bg-red-600/20 text-red-500 border-red-600/30'
+                                  : 'bg-yellow-600/20 text-yellow-500 border-yellow-600/30'
+                              }>
+                                {user.verificationStatus}
+                              </Badge>
+                              <Badge className={
+                                user.accountStatus === 'blocked'
+                                  ? 'bg-red-600/20 text-red-500 border-red-600/30'
+                                  : 'bg-blue-600/20 text-blue-500 border-blue-600/30'
+                              }>
+                                {user.accountStatus}
+                              </Badge>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2 text-xs text-gray-500">
                             <MapPin className="size-3" />
@@ -628,7 +772,7 @@ export function EnhancedAdminDashboard({ onLogout }) {
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle className={isDarkMode ? 'text-white' : 'text-[#1F2933]'}>
-                            Verification Details
+                            User Management Details
                           </CardTitle>
                           <Button
                             variant="ghost"
@@ -672,6 +816,16 @@ export function EnhancedAdminDashboard({ onLogout }) {
                             <div>
                               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Submitted:</span>
                               <p className={isDarkMode ? 'text-white' : 'text-[#1F2933]'}>{selectedUser.submittedDate}</p>
+                            </div>
+                            <div>
+                              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Verification:</span>
+                              <p className="capitalize">{selectedUser.verificationStatus}</p>
+                            </div>
+                            <div>
+                              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Account Access:</span>
+                              <p className={`capitalize ${selectedUser.accountStatus === 'blocked' ? 'text-red-600' : 'text-green-600'}`}>
+                                {selectedUser.accountStatus}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -791,10 +945,27 @@ export function EnhancedAdminDashboard({ onLogout }) {
                           </div>
                         </div>
 
+                        {/* User Activity */}
+                        <div>
+                          <h4 className={`font-medium mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
+                            <ScrollText className="size-4 text-[#2563EB]" />
+                            User Activities
+                          </h4>
+                          <div className="space-y-2">
+                            {(selectedUser.activities || []).map((activity) => (
+                              <div key={activity.id} className={`p-3 rounded-lg border ${isDarkMode ? 'bg-[#1F2933] border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
+                                <p className={`text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{activity.label}</p>
+                                <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{activity.date}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
                         {/* Action Buttons */}
-                        <div className="flex gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <Button
                             onClick={() => handleApproveUser(selectedUser)}
+                            disabled={selectedUser.verificationStatus === 'verified'}
                             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                           >
                             <UserCheck className="size-4 mr-2" />
@@ -802,6 +973,7 @@ export function EnhancedAdminDashboard({ onLogout }) {
                           </Button>
                           <Button
                             onClick={() => handleRejectUser(selectedUser)}
+                            disabled={selectedUser.verificationStatus === 'rejected'}
                             className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                           >
                             <UserX className="size-4 mr-2" />
@@ -814,6 +986,21 @@ export function EnhancedAdminDashboard({ onLogout }) {
                           >
                             <MessageSquare className="size-4 mr-2" />
                             Request Info
+                          </Button>
+                          <Button
+                            onClick={() => handleAccountAccess(selectedUser)}
+                            className={`flex-1 text-white ${
+                              selectedUser.accountStatus === 'blocked'
+                                ? 'bg-[#2563EB] hover:bg-[#1d4ed8]'
+                                : 'bg-red-600 hover:bg-red-700'
+                            }`}
+                          >
+                            {selectedUser.accountStatus === 'blocked' ? (
+                              <Unlock className="size-4 mr-2" />
+                            ) : (
+                              <Ban className="size-4 mr-2" />
+                            )}
+                            {selectedUser.accountStatus === 'blocked' ? 'Unblock User' : 'Block User'}
                           </Button>
                         </div>
                       </CardContent>
@@ -849,7 +1036,10 @@ export function EnhancedAdminDashboard({ onLogout }) {
                       {disputes.map((dispute) => (
                         <div
                           key={dispute.id}
-                          onClick={() => setSelectedDispute(dispute)}
+                          onClick={() => {
+                            setSelectedDispute(dispute);
+                            setAdminMessageDraft('');
+                          }}
                           className={`p-4 rounded-lg border cursor-pointer transition-colors ${
                             selectedDispute && selectedDispute.id === dispute.id
                               ? 'border-[#2563EB] bg-[#2563EB]/10'
@@ -940,7 +1130,64 @@ export function EnhancedAdminDashboard({ onLogout }) {
                               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Reason:</span>
                               <p className={isDarkMode ? 'text-white' : 'text-[#1F2933]'}>{selectedDispute.reason}</p>
                             </div>
+                            <div className="col-span-2">
+                              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Reference ID:</span>
+                              <p className={`font-mono ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>{selectedDispute.referenceId}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Description:</span>
+                              <p className={isDarkMode ? 'text-white' : 'text-[#1F2933]'}>{selectedDispute.description}</p>
+                            </div>
                           </div>
+                        </div>
+
+                        {/* Dispute Timeline */}
+                        <div>
+                          <h4 className={`font-medium mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
+                            <Clock className="size-4 text-[#2563EB]" />
+                            Dispute Timeline
+                          </h4>
+                          <div className="space-y-3">
+                            {(selectedDispute.timeline || []).map((event, index) => (
+                              <div key={`${event.label}-${index}`} className="flex items-start gap-3">
+                                <div className={`mt-1 size-3 rounded-full ${
+                                  event.status === 'current' && !selectedDispute.finalDecision ? 'bg-yellow-500' : 'bg-green-600'
+                                }`} />
+                                <div className={`flex-1 rounded-lg p-3 ${isDarkMode ? 'bg-[#1F2933]' : 'bg-gray-50'}`}>
+                                  <div className={isDarkMode ? 'text-gray-200' : 'text-gray-800'}>{event.label}</div>
+                                  <div className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{event.date}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Uploaded Evidence */}
+                        <div>
+                          <h4 className={`font-medium mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
+                            <Upload className="size-4 text-[#2563EB]" />
+                            Uploaded Evidence
+                          </h4>
+                          {(selectedDispute.evidence || []).length > 0 ? (
+                            <div className="space-y-2">
+                              {selectedDispute.evidence.map((file) => (
+                                <div key={file.id} className={`flex items-center justify-between rounded-lg p-3 ${isDarkMode ? 'bg-[#1F2933]' : 'bg-gray-50'}`}>
+                                  <div className="flex items-center gap-3">
+                                    <FileCheck className="size-5 text-[#2563EB]" />
+                                    <div>
+                                      <p className={isDarkMode ? 'text-white' : 'text-[#1F2933]'}>{file.name}</p>
+                                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        Uploaded by {file.submittedBy} - {file.date}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Badge variant="outline">Submitted</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>No evidence uploaded.</p>
+                          )}
                         </div>
 
                         {/* Payment History */}
@@ -978,20 +1225,40 @@ export function EnhancedAdminDashboard({ onLogout }) {
                           </div>
                         </div>
 
-                        {/* AI Monitor - Chat History */}
+                        {/* AI Analysis */}
                         <div className={`p-4 rounded-lg ${
                           selectedDispute.ppcViolation
                             ? isDarkMode ? 'bg-red-900/20' : 'bg-red-50'
                             : isDarkMode ? 'bg-[#1F2933]' : 'bg-gray-50'
-                        }`}>
+                          }`}>
                           <h4 className={`font-medium mb-3 ${
                             selectedDispute.ppcViolation
                               ? isDarkMode ? 'text-red-400' : 'text-red-700'
                               : isDarkMode ? 'text-white' : 'text-[#1F2933]'
                           }`}>
-                            AI Monitored Chat History
+                            AI Analysis
                           </h4>
                           <div className="space-y-3">
+                            <div className={`p-3 rounded ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                              <div className="flex items-center justify-between gap-3 mb-2">
+                                <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>Recommendation</span>
+                                <Badge className="bg-[#2563EB]/10 text-[#2563EB] border-[#2563EB]/30">
+                                  {selectedDispute.aiAnalysis.confidence}% Confidence
+                                </Badge>
+                              </div>
+                              <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                {selectedDispute.aiAnalysis.recommendation}
+                              </p>
+                            </div>
+                            {selectedDispute.aiAnalysis.findings.map((finding) => (
+                              <div key={finding} className={`flex items-start gap-2 p-3 rounded ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                                <CheckCircle className="mt-0.5 size-4 flex-shrink-0 text-green-600" />
+                                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{finding}</p>
+                              </div>
+                            ))}
+                            <h5 className={`text-sm font-medium pt-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              Monitored Communication
+                            </h5>
                             <div className={`p-3 rounded ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
                               <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                                 <strong>Client:</strong> "The quality is not what we agreed on."
@@ -1022,34 +1289,90 @@ export function EnhancedAdminDashboard({ onLogout }) {
                           </div>
                         </div>
 
+                        {/* Admin Messages */}
+                        <div>
+                          <h4 className={`font-medium mb-3 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
+                            <MessageSquare className="size-4 text-[#2563EB]" />
+                            Admin Messages
+                          </h4>
+                          <div className="space-y-2 mb-3">
+                            {(selectedDispute.adminMessages || []).length > 0 ? selectedDispute.adminMessages.map((message) => (
+                              <div key={message.id} className={`rounded-lg p-3 ${isDarkMode ? 'bg-[#1F2933]' : 'bg-gray-50'}`}>
+                                <div className="flex items-center justify-between text-xs mb-1">
+                                  <span className="font-medium text-[#2563EB]">{message.sender}</span>
+                                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>{message.date}</span>
+                                </div>
+                                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{message.message}</p>
+                              </div>
+                            )) : (
+                              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>No admin messages sent yet.</p>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Textarea
+                              value={adminMessageDraft}
+                              onChange={(event) => setAdminMessageDraft(event.target.value)}
+                              placeholder="Write an update for the client and manufacturer..."
+                              rows={3}
+                              className={isDarkMode ? 'bg-[#1F2933] border-gray-700 text-white' : ''}
+                            />
+                            <Button
+                              onClick={handleSendAdminMessage}
+                              disabled={!adminMessageDraft.trim()}
+                              className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white"
+                            >
+                              <Send className="size-4 mr-2" />
+                              Send Message
+                            </Button>
+                          </div>
+                        </div>
+
                         {/* Decision Buttons */}
                         <div>
                           <h4 className={`font-medium mb-3 ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
                             Final Decision
                           </h4>
-                          <div className="grid grid-cols-1 gap-3">
-                            <Button
-                              onClick={() => handleResolveDispute(selectedDispute, 'refund')}
-                              className="bg-blue-600 hover:bg-blue-700 text-white justify-start"
-                            >
-                              <RefreshCw className="size-4 mr-2" />
-                              Refund to Client - PKR {selectedDispute.amount.toLocaleString()}
-                            </Button>
-                            <Button
-                              onClick={() => handleResolveDispute(selectedDispute, 'release')}
-                              className="bg-green-600 hover:bg-green-700 text-white justify-start"
-                            >
-                              <Unlock className="size-4 mr-2" />
-                              Release to Manufacturer - PKR {selectedDispute.amount.toLocaleString()}
-                            </Button>
-                            <Button
-                              onClick={() => handleResolveDispute(selectedDispute, 'suspend')}
-                              className="bg-red-600 hover:bg-red-700 text-white justify-start"
-                            >
-                              <Ban className="size-4 mr-2" />
-                              Issue PPC Warning / Suspend Account
-                            </Button>
-                          </div>
+                          {selectedDispute.finalDecision ? (
+                            <div className={`rounded-lg border p-4 ${
+                              isDarkMode ? 'border-green-700 bg-green-900/20' : 'border-green-200 bg-green-50'
+                            }`}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <CheckCircle className="size-5 text-green-600" />
+                                <span className="font-medium text-green-700">Decision Recorded</span>
+                              </div>
+                              <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{selectedDispute.finalDecision.outcome}</p>
+                              <p className={`mt-2 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {selectedDispute.finalDecision.decidedBy} - {selectedDispute.finalDecision.date}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 gap-3">
+                              <Button
+                                onClick={() => handleResolveDispute(selectedDispute, 'refund')}
+                                disabled={isResolvingDispute}
+                                className="bg-blue-600 hover:bg-blue-700 text-white justify-start"
+                              >
+                                <RefreshCw className="size-4 mr-2" />
+                                Refund to Client - PKR {selectedDispute.amount.toLocaleString()}
+                              </Button>
+                              <Button
+                                onClick={() => handleResolveDispute(selectedDispute, 'release')}
+                                disabled={isResolvingDispute}
+                                className="bg-green-600 hover:bg-green-700 text-white justify-start"
+                              >
+                                <Unlock className="size-4 mr-2" />
+                                Release to Manufacturer - PKR {selectedDispute.amount.toLocaleString()}
+                              </Button>
+                              <Button
+                                onClick={() => handleResolveDispute(selectedDispute, 'suspend')}
+                                disabled={isResolvingDispute}
+                                className="bg-red-600 hover:bg-red-700 text-white justify-start"
+                              >
+                                <Ban className="size-4 mr-2" />
+                                Issue PPC Warning / Suspend Account
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

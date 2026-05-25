@@ -15,7 +15,12 @@ import {
   CheckCircle,
   Factory,
   AlertTriangle,
-  CreditCard
+  CreditCard,
+  FileText,
+  Upload,
+  Truck,
+  ReceiptText,
+  ShieldCheck
 } from 'lucide-react';
 import { ManufacturerListModal } from './ManufacturerListModal';
 import { ChatModal } from './ChatModal';
@@ -42,6 +47,10 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
   const [reviewData, setReviewData] = useState(null);
   const [aiAnalysisResult, setAIAnalysisResult] = useState(null);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [deliveryProofs, setDeliveryProofs] = useState(order.deliveryProofs || []);
+  const [agreementAccepted, setAgreementAccepted] = useState(
+    order.agreementAccepted ?? order.status !== 'pending'
+  );
 
   const escrowTotal = order.escrowStatus?.total || order.budget || 0;
   const escrowDeposited = order.escrowStatus?.deposited || 0;
@@ -53,6 +62,37 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
     ? order.manufacturer?.name || 'Manufacturer'
     : order.client?.name || order.clientName || 'Client';
   const reviewTargetRole = userType === 'client' ? 'manufacturer' : 'client';
+  const agreementId = `AGR-${order.id.toString().padStart(5, '0')}`;
+  const displayProofs = order.deliveryProofs || deliveryProofs;
+  const paymentHistory = order.paymentHistory?.length
+    ? order.paymentHistory
+    : [
+        ...(escrowDeposited > 0 ? [{
+          id: `TXN-${order.id}-DEP`,
+          description: 'Payment deposited into escrow',
+          amount: escrowDeposited,
+          date: order.deadline,
+          status: 'completed'
+        }] : []),
+        ...(escrowReleased > 0 ? [{
+          id: `TXN-${order.id}-ADV`,
+          description: 'Advance released to manufacturer',
+          amount: escrowReleased,
+          date: order.deadline,
+          status: 'completed'
+        }] : [])
+      ];
+
+  const addTransaction = (description, amount) => ([
+    ...paymentHistory,
+    {
+      id: `TXN-${order.id}-${Date.now()}`,
+      description,
+      amount,
+      date: new Date().toISOString(),
+      status: 'completed'
+    }
+  ]);
 
   const handleUpdateQuantity = () => {
     if (onUpdate) {
@@ -78,14 +118,17 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
     if (onUpdate) {
       onUpdate({
         status: 'in-progress',
+        agreementAccepted: true,
         escrowStatus: {
           total: escrowTotal,
           deposited: escrowTotal,
           released: advanceRelease
         },
-        escrowNotification: 'Client paid full order amount to escrow. 30% advance released to manufacturer.'
+        escrowNotification: 'Client paid full order amount to escrow. 30% advance released to manufacturer.',
+        paymentHistory: addTransaction('Full payment deposited; 30% advance released', escrowTotal)
       });
     }
+    setAgreementAccepted(true);
     alert(`Order confirmed. Full payment PKR ${escrowTotal.toLocaleString()} is now in escrow and 30% advance has been released to the manufacturer.`);
   };
 
@@ -93,17 +136,18 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
     if (decision === 'success') {
       if (onUpdate) {
         onUpdate({
-          status: 'completed',
+          status: 'in-progress',
           deliveryStatus: 'successful',
           escrowStatus: {
             total: escrowTotal,
             deposited: escrowTotal,
-            released: escrowTotal
+            released: escrowReleased
           },
-          escrowNotification: `Successful delivery confirmed. Escrow notified to release remaining 70% (PKR ${finalRelease.toLocaleString()}) to manufacturer.`
+          escrowNotification: `Successful delivery confirmed. Release remaining 70% (PKR ${finalRelease.toLocaleString()}) when ready.`
         });
       }
-      alert(`Successful delivery confirmed. Escrow notified and remaining 70% (PKR ${finalRelease.toLocaleString()}) will be released to the manufacturer.`);
+      setShowDeliveryDecision(false);
+      alert(`Successful delivery confirmed. Remaining 70% (PKR ${finalRelease.toLocaleString()}) is ready for release.`);
       return;
     }
 
@@ -120,6 +164,44 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
       });
     }
     alert('Failed delivery reported. Escrow has been notified to hold the remaining payment for review.');
+  };
+
+  const handleReleasePayment = () => {
+    if (onUpdate) {
+      onUpdate({
+        status: 'completed',
+        escrowStatus: {
+          total: escrowTotal,
+          deposited: escrowTotal,
+          released: escrowTotal
+        },
+        escrowNotification: `Final payment of PKR ${finalRelease.toLocaleString()} released to the manufacturer.`,
+        paymentHistory: addTransaction('Final payment released to manufacturer', finalRelease)
+      });
+    }
+    alert(`Payment released successfully. PKR ${finalRelease.toLocaleString()} has been sent to the manufacturer.`);
+  };
+
+  const handleProofUpload = (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const uploaded = files.map((file) => ({
+      id: `${Date.now()}-${file.name}`,
+      name: file.name,
+      type: file.type || 'Document',
+      uploadedBy: userType === 'client' ? 'Client' : 'Manufacturer',
+      uploadedAt: new Date().toLocaleString()
+    }));
+    const updatedProofs = [...displayProofs, ...uploaded];
+    setDeliveryProofs(updatedProofs);
+    if (onUpdate) onUpdate({ deliveryProofs: updatedProofs });
+    event.target.value = '';
+  };
+
+  const handleAgreementAcceptance = (checked) => {
+    setAgreementAccepted(checked);
+    if (onUpdate) onUpdate({ agreementAccepted: checked });
   };
 
   // New: Handle Confirm Delivery - Triggers Review Flow
@@ -159,7 +241,7 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <CardTitle>{order.title}</CardTitle>
+                  <CardTitle>Transaction Details</CardTitle>
                   <Badge variant={
                     order.status === 'completed' ? 'default' : 
                     order.status === 'in-progress' ? 'secondary' : 
@@ -168,7 +250,7 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
                     {order.status}
                   </Badge>
                 </div>
-                <CardDescription>{order.description}</CardDescription>
+                <CardDescription>{order.title} - {order.description}</CardDescription>
               </div>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="size-5" />
@@ -279,6 +361,111 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
               </div>
             </div>
 
+            {/* Agreement */}
+            <div className="border rounded-lg p-4">
+              <h4 className="mb-3 flex items-center gap-2">
+                <FileText className="size-5 text-[#2563EB]" />
+                Agreement
+              </h4>
+              <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <div className="text-gray-500">Agreement ID</div>
+                  <div className="font-mono">{agreementId}</div>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <div className="text-gray-500">Terms</div>
+                  <div>30% advance, 70% after approved delivery</div>
+                </div>
+              </div>
+              <div className="mt-3 flex items-start gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
+                <ShieldCheck className="size-5 flex-shrink-0 text-[#2563EB]" />
+                <div className="text-sm text-gray-700">
+                  Payment remains protected in escrow until delivery is approved and final payment is released.
+                </div>
+              </div>
+              <label className="mt-3 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={agreementAccepted}
+                  disabled={userType !== 'client' || order.status !== 'pending'}
+                  onChange={(event) => handleAgreementAcceptance(event.target.checked)}
+                  className="size-4 accent-[#2563EB]"
+                />
+                <span>{agreementAccepted ? 'Agreement accepted by client' : 'Client agreement pending'}</span>
+              </label>
+            </div>
+
+            {/* Delivery Status and Proof Uploads */}
+            <div className="border rounded-lg p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <h4 className="flex items-center gap-2">
+                  <Truck className="size-5 text-[#2563EB]" />
+                  Delivery Status & Proof Uploads
+                </h4>
+                <Badge variant="outline">
+                  {order.deliveryStatus === 'successful'
+                    ? 'Approved'
+                    : order.deliveryStatus === 'failed'
+                    ? 'Failed / Disputed'
+                    : order.status === 'completed'
+                    ? 'Completed'
+                    : 'Awaiting Delivery'}
+                </Badge>
+              </div>
+              <label className="mb-4 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-700 hover:border-[#2563EB]">
+                <Upload className="size-4 text-[#2563EB]" />
+                Upload delivery proof
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,application/pdf"
+                  className="hidden"
+                  onChange={handleProofUpload}
+                />
+              </label>
+              {displayProofs.length > 0 ? (
+                <div className="space-y-2">
+                  {displayProofs.map((proof) => (
+                    <div key={proof.id} className="flex items-center justify-between rounded-lg bg-gray-50 p-3 text-sm">
+                      <div>
+                        <div className="font-medium">{proof.name}</div>
+                        <div className="text-xs text-gray-500">{proof.uploadedBy} - {proof.uploadedAt}</div>
+                      </div>
+                      <Badge variant="outline">Uploaded</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No proof files uploaded yet.</p>
+              )}
+            </div>
+
+            {/* Payment History */}
+            <div className="border rounded-lg p-4">
+              <h4 className="mb-3 flex items-center gap-2">
+                <ReceiptText className="size-5 text-[#2563EB]" />
+                Payment History
+              </h4>
+              {paymentHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {paymentHistory.map((payment) => (
+                    <div key={payment.id} className="flex items-start justify-between rounded-lg bg-gray-50 p-3 text-sm">
+                      <div>
+                        <div className="font-medium">{payment.description}</div>
+                        <div className="font-mono text-xs text-gray-500">{payment.id}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium text-green-700">PKR {payment.amount.toLocaleString()}</div>
+                        <div className="text-xs text-gray-500">{new Date(payment.date).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No payments recorded for this transaction.</p>
+              )}
+            </div>
+
             {/* Rating Section */}
             {showRating && (
               <div className="border rounded-lg p-4">
@@ -324,10 +511,11 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
               {userType === 'client' && order.status === 'pending' && (
                 <Button
                   onClick={handleConfirmOrderAndPay}
+                  disabled={!agreementAccepted}
                   className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8]"
                 >
                   <CreditCard className="size-4 mr-2" />
-                  Confirm Order & Pay
+                  {agreementAccepted ? 'Confirm Order & Pay' : 'Accept Agreement to Pay'}
                 </Button>
               )}
 
@@ -339,7 +527,7 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
               )}
 
               {/* NEW: Confirm Delivery Button for Client on In-Progress Orders */}
-              {userType === 'client' && order.status === 'in-progress' && (
+              {userType === 'client' && order.status === 'in-progress' && !order.deliveryStatus && (
                 <Button 
                   onClick={() => setShowDeliveryDecision(!showDeliveryDecision)}
                   className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8]"
@@ -363,6 +551,16 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
                 </Button>
               )}
 
+              {userType === 'client' && order.deliveryStatus === 'successful' && escrowReleased < escrowTotal && (
+                <Button
+                  onClick={handleReleasePayment}
+                  className="flex-1 bg-green-600 text-white hover:bg-green-700"
+                >
+                  <Wallet className="size-4 mr-2" />
+                  Release Payment
+                </Button>
+              )}
+
               {(userType === 'client' || userType === 'manufacturer') && order.status === 'in-progress' && (
                 <Button
                   variant="outline"
@@ -375,7 +573,7 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
               )}
             </div>
 
-            {userType === 'client' && order.status === 'in-progress' && showDeliveryDecision && (
+            {userType === 'client' && order.status === 'in-progress' && !order.deliveryStatus && showDeliveryDecision && (
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <h4 className="mb-2">Delivery Result</h4>
                 <p className="mb-4 text-sm text-gray-600">

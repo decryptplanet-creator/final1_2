@@ -15,8 +15,13 @@ export function EscrowStatusBadge({ status, size = 'md' }) {
     },
     PENDING: {
       icon: Clock,
-      text: 'Pending Confirmation',
+      text: 'Awaiting Payment',
       className: 'bg-blue-500/10 text-blue-600 border-blue-500/30'
+    },
+    FAILED: {
+      icon: AlertCircle,
+      text: 'Payment Failed',
+      className: 'bg-red-500/10 text-red-600 border-red-500/30'
     },
     COMPLETED: {
       icon: CheckCircle,
@@ -25,7 +30,7 @@ export function EscrowStatusBadge({ status, size = 'md' }) {
     }
   };
 
-  const config = configs[status];
+  const config = configs[status] || configs.PENDING;
   const Icon = config.icon;
   
   const sizeClasses = {

@@ -1,27 +1,41 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { X, ShieldCheck, Info, DollarSign } from 'lucide-react';
+import { X, ShieldCheck, Info, CreditCard, Building2, Smartphone, ReceiptText, AlertCircle } from 'lucide-react';
 import { EscrowStatusBadge } from './EscrowStatusBadge';
 import { useTheme } from '../../contexts/ThemeContext';
 
-export function EscrowPaymentModal({ onClose, orderData, onPaymentConfirm }) {
+export function EscrowPaymentModal({ onClose, orderData, onPaymentResult }) {
   const { isDarkMode } = useTheme();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [transactionId] = useState(() => `TXN-${Date.now().toString().slice(-8)}`);
 
-  const handleConfirmPayment = async () => {
+  const paymentMethods = [
+    { id: 'card', label: 'Debit / Credit Card', detail: 'Visa or Mastercard', icon: CreditCard },
+    { id: 'bank', label: 'Bank Transfer', detail: 'Instant online banking', icon: Building2 },
+    { id: 'wallet', label: 'Mobile Wallet', detail: 'JazzCash or Easypaisa', icon: Smartphone }
+  ];
+  const selectedMethod = paymentMethods.find((method) => method.id === paymentMethod);
+
+  const handleConfirmPayment = (shouldSucceed = true) => {
     setIsProcessing(true);
-    
-    // Simulate payment processing
+
     setTimeout(() => {
-      onPaymentConfirm();
+      onPaymentResult(shouldSucceed ? 'success' : 'failed', {
+        id: transactionId,
+        orderId: orderData.id || 'ORD-DEMO-001',
+        method: selectedMethod.label,
+        amount: orderData.advanceAmount,
+        date: new Date().toLocaleString()
+      });
       setIsProcessing(false);
     }, 1500);
   };
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <Card className={`max-w-xl w-full ${isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}`}>
+      <Card className={`max-w-2xl w-full max-h-[95vh] overflow-y-auto ${isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}`}>
         <CardHeader className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <div className="flex items-center justify-between">
             <div>
@@ -67,16 +81,47 @@ export function EscrowPaymentModal({ onClose, orderData, onPaymentConfirm }) {
             </div>
           </div>
 
-          {/* Payment Details */}
+          {/* Payment Method */}
+          <div className="space-y-3">
+            <h3 className={`font-medium flex items-center gap-2 ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
+              <CreditCard className="size-5 text-[#2563EB]" />
+              Payment Method
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {paymentMethods.map((method) => (
+                <button
+                  type="button"
+                  key={method.id}
+                  onClick={() => setPaymentMethod(method.id)}
+                  disabled={isProcessing}
+                  className={`p-3 rounded-lg border text-left transition-colors ${
+                    paymentMethod === method.id
+                      ? 'border-[#2563EB] bg-[#2563EB]/10'
+                      : isDarkMode ? 'border-gray-700 bg-[#1F2933]' : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <method.icon className={`size-5 mb-2 ${paymentMethod === method.id ? 'text-[#2563EB]' : isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <div className={`text-sm font-medium ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>{method.label}</div>
+                  <div className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{method.detail}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Transaction Summary */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <DollarSign className="size-5 text-[#2563EB]" />
+              <ReceiptText className="size-5 text-[#2563EB]" />
               <h3 className={`font-medium ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2937]'}`}>
-                Payment Breakdown
+                Transaction Summary
               </h3>
             </div>
 
             <div className="space-y-3">
+              <div className={`flex items-center justify-between p-3 rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Transaction ID</span>
+                <span className={`text-sm font-mono ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>{transactionId}</span>
+              </div>
               {/* Total Amount */}
               <div className="flex items-center justify-between p-3 bg-[#2563EB]/5 rounded-lg">
                 <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Total Amount</span>
@@ -94,12 +139,16 @@ export function EscrowPaymentModal({ onClose, orderData, onPaymentConfirm }) {
                   PKR {orderData.advanceAmount.toLocaleString()}
                 </span>
               </div>
+              <div className={`flex items-center justify-between p-3 rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Pay With</span>
+                <span className={`font-medium ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>{selectedMethod.label}</span>
+              </div>
             </div>
           </div>
 
           {/* Escrow Status Badge */}
           <div className="flex justify-center">
-            <EscrowStatusBadge status="HOLD" size="lg" />
+            <EscrowStatusBadge status="PENDING" size="lg" />
           </div>
 
           {/* Escrow Information */}
@@ -108,12 +157,12 @@ export function EscrowPaymentModal({ onClose, orderData, onPaymentConfirm }) {
               <Info className="size-5 text-[#2563EB] flex-shrink-0 mt-0.5" />
               <div className="space-y-2">
                 <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Payment safely hold mein hai. Manufacturer confirmation ke baad kaam start kare ga.
+                  Your payment will be secured in escrow as soon as this transaction succeeds.
                 </p>
                 <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  • Platform advance payment ko secure escrow mein hold karega<br />
-                  • Manufacturer ko kaam start karne ke liye 5% advance release hoga<br />
-                  • Baaki payment aapki final approval ke baad release hogi
+                  - The advance payment is held securely by Skillora<br />
+                  - A work-start advance is released after confirmation<br />
+                  - Remaining funds release only after your final approval
                 </p>
               </div>
             </div>
@@ -127,9 +176,9 @@ export function EscrowPaymentModal({ onClose, orderData, onPaymentConfirm }) {
             </span>
           </div>
 
-          {/* Action Button */}
-          <Button 
-            onClick={handleConfirmPayment}
+          {/* Action Buttons */}
+          <Button
+            onClick={() => handleConfirmPayment(true)}
             disabled={isProcessing}
             className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white h-12 text-base"
           >
@@ -139,8 +188,17 @@ export function EscrowPaymentModal({ onClose, orderData, onPaymentConfirm }) {
                 Processing Payment...
               </div>
             ) : (
-              'Confirm & Pay Advance'
+              `Pay PKR ${orderData.advanceAmount.toLocaleString()} Securely`
             )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleConfirmPayment(false)}
+            disabled={isProcessing}
+            className={`w-full ${isDarkMode ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+          >
+            <AlertCircle className="size-4 mr-2" />
+            Simulate Failed Payment
           </Button>
         </CardContent>
       </Card>

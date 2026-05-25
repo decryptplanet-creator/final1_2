@@ -1,11 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { CheckCircle, Lock, TrendingUp } from 'lucide-react';
+import { CheckCircle, Lock, TrendingUp, ReceiptText } from 'lucide-react';
 import { EscrowStatusBadge } from './EscrowStatusBadge';
 import { ProgressTimeline } from './ProgressTimeline';
 import { useTheme } from '../../contexts/ThemeContext';
 
-export function PaymentSuccessModal({ onClose, orderData }) {
+export function PaymentSuccessModal({ onClose, orderData, transaction }) {
   const { isDarkMode } = useTheme();
   
   const timelineSteps = [
@@ -33,6 +33,7 @@ export function PaymentSuccessModal({ onClose, orderData }) {
   ];
 
   const manufacturerAdvance = orderData.totalAmount * 0.05; // 5% = 5,000 PKR
+  const securedAdvance = orderData.advanceAmount - manufacturerAdvance;
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -57,10 +58,26 @@ export function PaymentSuccessModal({ onClose, orderData }) {
           {/* Payment Summary */}
           <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-[#1F2933]' : 'bg-gray-50'}`}>
             <div className="space-y-3">
+              <h3 className={`font-medium flex items-center gap-2 mb-3 ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
+                <ReceiptText className="size-5 text-[#2563EB]" />
+                Transaction Summary
+              </h3>
+              <div className="flex items-center justify-between">
+                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Transaction ID:</span>
+                <span className={`text-sm font-mono ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
+                  {transaction?.id || 'TXN-CONFIRMED'}
+                </span>
+              </div>
               <div className="flex items-center justify-between">
                 <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Order:</span>
                 <span className={`font-medium ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
                   {orderData.productName}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Payment Method:</span>
+                <span className={isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}>
+                  {transaction?.method || 'Debit / Credit Card'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -94,8 +111,8 @@ export function PaymentSuccessModal({ onClose, orderData }) {
                   </span> release kar diya gaya hai.
                 </p>
                 <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Baaki <span className="font-semibold">PKR {(orderData.totalAmount - orderData.advanceAmount - manufacturerAdvance).toLocaleString()}</span> escrow 
-                  mein secure hai aur aapki final approval ke baad release hoga.
+                  Paid advance mein se <span className="font-semibold">PKR {securedAdvance.toLocaleString()}</span> escrow
+                  mein secure hai. Remaining order balance final approval par payable hoga.
                 </p>
               </div>
             </div>

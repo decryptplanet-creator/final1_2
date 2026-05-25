@@ -98,6 +98,19 @@ export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted }) {
           disputeReason,
           disputeDescription,
           disputeReferenceId: resolvedReferenceId,
+          disputeEvidence: evidenceFiles.map((file, index) => ({
+            id: `evidence-${index + 1}`,
+            name: file.name,
+            submittedBy: 'Client',
+            date: new Date().toLocaleString(),
+          })),
+          disputeTimeline: [
+            { label: 'Dispute raised', date: new Date().toLocaleString(), status: 'completed' },
+            ...(evidenceFiles.length > 0
+              ? [{ label: 'Evidence uploaded', date: new Date().toLocaleString(), status: 'completed' }]
+              : []),
+            { label: resolutionStatus === 'auto-resolved' ? 'AI resolution issued' : 'Escalated to admin review', date: new Date().toLocaleString(), status: 'current' },
+          ],
           escrowNotification: 'Dispute raised successfully. Escrow notified and funds are on hold pending review.',
         });
       }
