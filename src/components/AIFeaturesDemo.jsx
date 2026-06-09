@@ -5,7 +5,7 @@ import { Badge } from './ui/labelstatus';
 import { Sparkles, Camera, MessageSquare, Search, Scale, Star, Ban, ArrowLeft } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { AICNICVerification } from './AICNICVerification';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { AIDisputeResolution } from './AIDisputeResolution';
 import { AISentimentAnalysis } from './AISentimentAnalysis';
 import { DuplicateAccountDetection } from './DuplicateAccountDetection';
@@ -75,7 +75,7 @@ export function AIFeaturesDemo({ onBack }) {
       
       case 'chat-monitoring':
         return (
-          <ChatModal
+          <ChatModule
             recipientName="ABC Manufacturing"
             onClose={() => setActiveDemo(null)}
           />
@@ -306,3 +306,4 @@ export function AIFeaturesDemo({ onBack }) {
 /* This file is a demo dashboard showcasing multiple AI features (verification, chat monitoring, search, sentiment, dispute resolution, etc.) and lets users interact with them.
 
 It is web-based (React frontend), but can also be used in hybrid apps (both) if deployed via frameworks like React Native/WebView. */
+

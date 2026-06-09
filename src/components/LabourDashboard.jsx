@@ -1,5 +1,5 @@
 import { ProfileModal } from './ProfileMangement';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { HorizontalProfiles } from './HorizontalProfiles';
 import { NotificationsModal } from './NotificationsModal';
 import { EmailModal } from './EmailModal(Optional)';
@@ -267,7 +267,7 @@ export function LabourDashboard({ user, onLogout }) {
 
       {/* Modals - Same as before */}
       {showProfile && <ProfileModal user={selectedProfileUser || user} onClose={() => setShowProfile(false)} />}
-      {showChat && <ChatModal onClose={() => setShowChat(false)} />}
+      {showChat && <ChatModule onClose={() => setShowChat(false)} />}
       {showNotifications && <NotificationsModal onClose={() => setShowNotifications(false)} />}
       {showEmail && <EmailModal onClose={() => setShowEmail(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} userType="labour" />}
@@ -284,3 +284,5 @@ export function LabourDashboard({ user, onLogout }) {
     </div>
   );
 }
+
+

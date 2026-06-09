@@ -7,7 +7,7 @@ import {
   Calendar, DollarSign, Users, FileText, Video, Image as ImageIcon, ArrowLeft 
 } from 'lucide-react';
 import { useState } from 'react';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { EmailModal } from './EmailModal(Optional)';
 import { LocationModal } from './LocationModal';
 
@@ -15,6 +15,51 @@ export function IndividualProfile({ profile, userType, onClose }) {
   const [showChat, setShowChat] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
+
+  // Mock data for reviews
+  const reviews = [
+    { 
+      id: 1, 
+      reviewer: 'Asad Malik', 
+      rating: 5, 
+      comment: 'Excellent work quality and professional service. Highly recommended!',
+      date: '2 weeks ago'
+    },
+    { 
+      id: 2, 
+      reviewer: 'Saira Khan', 
+      rating: 5, 
+      comment: 'Very reliable and delivers on time. Great communication throughout.',
+      date: '1 month ago'
+    },
+    { 
+      id: 3, 
+      reviewer: 'Imran Sheikh', 
+      rating: 4, 
+      comment: 'Good work overall. Minor delays but quality was excellent.',
+      date: '2 months ago'
+    },
+  ];
+
+  // Reviews + Rating state
+  const [reviewsState, setReviewsState] = useState(reviews);
+  const [newRating, setNewRating] = useState(0);
+  const [newComment, setNewComment] = useState('');
+  const calcTrustScoreFromReviews = (rvws) => {
+    if (!rvws || rvws.length === 0) return profile.trustScore || 0;
+    const avg = rvws.reduce((s, r) => s + (r.rating || 0), 0) / rvws.length;
+    return Math.round((avg / 5) * 100);
+  };
+  const [trustScoreState, setTrustScoreState] = useState(calcTrustScoreFromReviews(reviews));
+
+  // Allow leaving review if a different logged-in user is viewing the profile
+  let canLeaveReview = false;
+  try {
+    const __cu = JSON.parse(localStorage.getItem('user') || 'null');
+    if (__cu && __cu.id && __cu.id !== profile.id) canLeaveReview = true;
+  } catch (e) {
+    canLeaveReview = false;
+  }
 
   const getColor = () => {
     if (userType === 'client') return { 
@@ -42,31 +87,6 @@ export function IndividualProfile({ profile, userType, onClose }) {
 
   const color = getColor();
   const Icon = userType === 'client' ? Briefcase : userType === 'manufacturer' ? Factory : HardHat;
-
-  // Mock data for reviews
-  const reviews = [
-    { 
-      id: 1, 
-      reviewer: 'Asad Malik', 
-      rating: 5, 
-      comment: 'Excellent work quality and professional service. Highly recommended!',
-      date: '2 weeks ago'
-    },
-    { 
-      id: 2, 
-      reviewer: 'Saira Khan', 
-      rating: 5, 
-      comment: 'Very reliable and delivers on time. Great communication throughout.',
-      date: '1 month ago'
-    },
-    { 
-      id: 3, 
-      reviewer: 'Imran Sheikh', 
-      rating: 4, 
-      comment: 'Good work overall. Minor delays but quality was excellent.',
-      date: '2 months ago'
-    },
-  ];
 
   // Mock portfolio/work samples
   const workSamples = [
@@ -105,7 +125,7 @@ export function IndividualProfile({ profile, userType, onClose }) {
                     )}
                   </div>
                   <p className="text-gray-300 mb-2">{profile.type}</p>
-                  <div className="flex items-center gap-4 text-sm text-gray-400">
+                  <div className="flex items-center gap-2 text-sm text-gray-400">
                     <span className="flex items-center gap-1">
                       <MapPin className="size-4" />
                       {profile.location}
@@ -126,10 +146,10 @@ export function IndividualProfile({ profile, userType, onClose }) {
           {/* Stats Bar */}
           <div className="grid grid-cols-4 gap-4 p-6 border-b border-gray-800">
             <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <TrendingUp className={`size-5 ${color.text}`} />
-                <span className="text-2xl text-white font-semibold">{profile.trustScore}</span>
-              </div>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                    <TrendingUp className={`size-5 ${color.text}`} />
+                    <span className="text-2xl text-white font-semibold">{trustScoreState}</span>
+                  </div>
               <p className="text-xs text-gray-400">Trust Score</p>
             </div>
             
@@ -272,7 +292,66 @@ export function IndividualProfile({ profile, userType, onClose }) {
                 Reviews & Ratings
               </h3>
               <div className="space-y-3">
-                {reviews.map((review) => (
+                {/* Rating Form: allow logged-in users to leave review on manufacturer profile */}
+                {canLeaveReview && (
+                  <Card className="bg-gray-800 border-gray-700">
+                    <CardContent className="p-4">
+                      <div className="mb-2">
+                        <p className="text-white font-medium">Leave a rating</p>
+                        <p className="text-xs text-gray-400">Add stars and a short comment to rate this manufacturer.</p>
+                      </div>
+                      <div className="flex items-center gap-2 mb-3">
+                        {[1,2,3,4,5].map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setNewRating(n)}
+                            className={`size-6 p-1 rounded ${newRating >= n ? 'bg-yellow-400 text-white' : 'bg-gray-700 text-gray-400'}`}
+                            title={`${n} star${n>1?'s':''}`}
+                          >
+                            <Star className="size-4" />
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Write a short comment..."
+                        className="w-full min-h-[64px] p-3 rounded bg-gray-900 border border-gray-700 text-gray-200 mb-3"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => {
+                            if (!newRating) return alert('Please select a star rating');
+                            if (!newComment.trim()) return alert('Please write a short comment');
+                            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                            const reviewer = currentUser.name || 'You';
+                            const newReview = {
+                              id: Date.now(),
+                              reviewer,
+                              rating: newRating,
+                              comment: newComment.trim(),
+                              date: 'just now'
+                            };
+                            const updated = [newReview, ...reviewsState];
+                            setReviewsState(updated);
+                            setNewRating(0);
+                            setNewComment('');
+                            setTrustScoreState(calcTrustScoreFromReviews(updated));
+                          }}
+                          className="bg-[#2563EB] text-white"
+                        >
+                          Submit Rating
+                        </Button>
+                        <Button variant="ghost" onClick={() => { setNewRating(0); setNewComment(''); }}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {reviewsState.map((review) => (
                   <Card key={review.id} className="bg-gray-800 border-gray-700">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-2">
@@ -337,7 +416,7 @@ export function IndividualProfile({ profile, userType, onClose }) {
       </div>
       
       {/* Modals */}
-      {showChat && <ChatModal onClose={() => setShowChat(false)} />}
+      {showChat && <ChatModule onClose={() => setShowChat(false)} />}
       {showEmail && (
         <EmailModal 
           onClose={() => setShowEmail(false)}
@@ -357,3 +436,4 @@ export function IndividualProfile({ profile, userType, onClose }) {
 }
 /*Purpose: Detailed individual profile UI showing user info, stats, reviews, portfolio, and contact options (chat, email, location).
 Type: Web-based (React component), but can be adapted for both web and mobile apps. */
+

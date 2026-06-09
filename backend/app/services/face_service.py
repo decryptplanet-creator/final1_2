@@ -1,173 +1,196 @@
 import cv2
 import numpy as np
-import tempfile
 import os
-from typing import Optional, Dict, Any, Tuple
 from app.schemas import FaceDetectionResult, FaceComparisonResult
-from app.utils.image_preprocessor import decode_base64_image, preprocess_cnic_image, extract_photo_region
+from app.utils.image_preprocessor import decode_base64_image
+
+# Debug images will be saved here (relative to where uvicorn is run from)
+DEBUG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "debug_images")
 
 
-def _save_image_temp_jpg(image: np.ndarray) -> str:
-    """Helper to write the numpy image to a temporary JPEG and returns the path."""
-    if image is None or not isinstance(image, np.ndarray) or image.size == 0:
-        raise ValueError("Empty image provided to DeepFace temp save")
+def _ensure_debug_dir():
+    os.makedirs(DEBUG_DIR, exist_ok=True)
 
-    fd, path = tempfile.mkstemp(suffix=".jpg")
-    os.close(fd)
 
-    ok, buffer = cv2.imencode(".jpg", image)
-    if not ok:
-        raise ValueError("Failed to encode image as JPEG")
-
-    with open(path, "wb") as f:
-        f.write(buffer.tobytes())
-
-    return path
+def _save_debug_image(image: np.ndarray, filename: str):
+    """Save a numpy image to DEBUG_DIR for inspection."""
+    try:
+        _ensure_debug_dir()
+        path = os.path.join(DEBUG_DIR, filename)
+        cv2.imwrite(path, image)
+        print(f"[FaceService] Debug image saved: {path}")
+    except Exception as e:
+        print(f"[FaceService] Could not save debug image {filename}: {e}")
 
 
 def _get_deepface():
-    """Lazy import DeepFace to avoid crashing the whole API startup."""
     try:
-        from deepface import DeepFace  # type: ignore
+        from deepface import DeepFace
         return DeepFace
     except Exception as e:
-        raise RuntimeError(
-            f"DeepFace is not available (missing dependencies). {e}"
-        ) from e
+        raise RuntimeError(f"DeepFace not available: {e}") from e
 
 
 class FaceService:
-    """Service for face detection and comparison using DeepFace."""
-    
-    DETECTOR_BACKENDS = ['opencv', 'mtcnn', 'ssd', 'dlib', 'retinaface']
-    RECOGNITION_MODELS = ['VGG-Face', 'Facenet', 'OpenFace', 'DeepFace', 'DeepID', 'ArcFace', 'Dlib']
-    
-    def __init__(self, detection_backend: str = 'opencv', 
-                 recognition_model: str = 'VGG-Face'):
-        self.detection_backend = detection_backend
-        self.recognition_model = recognition_model
-    
-    def detect_face(self, image_data: str, is_selfie: bool = False) -> FaceDetectionResult:
-        try:
-            image = decode_base64_image(image_data)
-            if not is_selfie:
-                image = preprocess_cnic_image(image)
-                photo_region = extract_photo_region(image)
-                if photo_region is not None and photo_region.size > 0:
-                    image = photo_region
-            
-            # Use OpenCV for fast detection
-            face_result = self._opencv_face_detection(image)
-            if face_result.face_detected:
-                return face_result
-            
-            return FaceDetectionResult(face_detected=False, face_count=0, confidence=0.0)
-            
-        except Exception as e:
-            print(f"Face detection error: {e}")
-            return FaceDetectionResult(face_detected=False, face_count=0, confidence=0.0, details={"error": str(e)})
 
-    def _opencv_face_detection(self, image: np.ndarray) -> FaceDetectionResult:
-        """Fallback face detection using OpenCV Haar Cascades."""
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-        
-        if len(faces) > 0:
-            largest_face = max(faces, key=lambda f: f[2] * f[3])
-            x, y, w, h = largest_face
-            face_region = image[y:y+h, x:x+w]
-            face_base64 = self._encode_face_image(face_region)
-            
-            return FaceDetectionResult(
-                face_detected=True,
-                face_count=len(faces),
-                face_location={'x': int(x), 'y': int(y), 'w': int(w), 'h': int(h)},
-                confidence=0.8,
-                face_image_base64=face_base64
+    def __init__(self):
+        pass
+
+    def detect_face(self, image_data: str, is_selfie: bool = False) -> FaceDetectionResult:
+        """Kept for backwards compatibility — uses RetinaFace internally."""
+        try:
+            DeepFace = _get_deepface()
+            image = decode_base64_image(image_data)
+            faces = DeepFace.extract_faces(
+                img_path=image,
+                detector_backend="retinaface",
+                enforce_detection=False,
             )
-        return FaceDetectionResult(face_detected=False, face_count=0, confidence=0.0)
+            detected = any(f.get("confidence", 0) > 0.5 for f in faces)
+            return FaceDetectionResult(
+                face_detected=detected,
+                face_count=len(faces),
+                confidence=faces[0].get("confidence", 0.0) if faces else 0.0,
+            )
+        except Exception as e:
+            print(f"[FaceService] detect_face error: {e}")
+            return FaceDetectionResult(face_detected=False, face_count=0, confidence=0.0,
+                                       details={"error": str(e)})
 
     def compare_faces(self, cnic_image_data: str, selfie_image_data: str) -> FaceComparisonResult:
         """
-        ACTUAL COMPARISON LOGIC: Matches CNIC face with Selfie.
+        Compare CNIC face vs selfie using RetinaFace (detection) + ArcFace (recognition).
+        RetinaFace detects the face from the FULL image — no manual cropping needed.
         """
-        temp_paths = []
+        print("[FaceService] compare_faces called")
+
+        # ── Step 1: Decode images ──────────────────────────────────────────────
+        if not cnic_image_data:
+            print("[FaceService] ERROR: cnic_image_data is empty/None")
+            return self._fail("CNIC image not received")
+
+        if not selfie_image_data:
+            print("[FaceService] ERROR: selfie_image_data is empty/None")
+            return self._fail("Selfie image not received")
+
         try:
-            # 1. Lazy load DeepFace
-            DeepFace = _get_deepface()
-
-            # 2. Decode and Preprocess
             cnic_img = decode_base64_image(cnic_image_data)
+            print(f"[FaceService] CNIC image decoded: shape={cnic_img.shape}")
+            _save_debug_image(cnic_img, "debug_cnic_input.jpg")
+        except Exception as e:
+            print(f"[FaceService] Failed to decode CNIC image: {e}")
+            return self._fail(f"Invalid CNIC image: {e}")
+
+        try:
             selfie_img = decode_base64_image(selfie_image_data)
-            cnic_img = preprocess_cnic_image(cnic_img)
+            print(f"[FaceService] Selfie image decoded: shape={selfie_img.shape}")
+            _save_debug_image(selfie_img, "debug_selfie_input.jpg")
+        except Exception as e:
+            print(f"[FaceService] Failed to decode selfie image: {e}")
+            return self._fail(f"Invalid selfie image: {e}")
 
-            # Extract only the portrait area from CNIC front
-            cnic_face_region = extract_photo_region(cnic_img)
-            if cnic_face_region is not None and cnic_face_region.size > 0:
-                cnic_img = cnic_face_region
-            else:
-                print("Warning: CNIC face region extraction failed, using full CNIC image for comparison.")
+        # ── Step 2: Check RetinaFace can detect faces ──────────────────────────
+        DeepFace = _get_deepface()
 
-            # 3. Save to temp files for DeepFace to read
-            path1 = _save_image_temp_jpg(cnic_img)
-            path2 = _save_image_temp_jpg(selfie_img)
-            temp_paths.extend([path1, path2])
+        print("[FaceService] Checking CNIC face detection with RetinaFace...")
+        try:
+            cnic_faces = DeepFace.extract_faces(
+                img_path=cnic_img,
+                detector_backend="retinaface",
+                enforce_detection=False,
+            )
+            cnic_detected = any(f.get("confidence", 0) > 0.5 for f in cnic_faces)
+            print(f"[FaceService] CNIC face detected: {cnic_detected} ({len(cnic_faces)} face(s) found)")
+        except Exception as e:
+            print(f"[FaceService] CNIC face detection error: {e}")
+            cnic_detected = False
 
-            # 4. Perform Verification
-            # Threshold hum 0.4 rakh rahe hain (VGG-Face standard)
+        print("[FaceService] Checking selfie face detection with RetinaFace...")
+        try:
+            selfie_faces = DeepFace.extract_faces(
+                img_path=selfie_img,
+                detector_backend="retinaface",
+                enforce_detection=False,
+            )
+            selfie_detected = any(f.get("confidence", 0) > 0.5 for f in selfie_faces)
+            print(f"[FaceService] Selfie face detected: {selfie_detected} ({len(selfie_faces)} face(s) found)")
+        except Exception as e:
+            print(f"[FaceService] Selfie face detection error: {e}")
+            selfie_detected = False
+
+        if not cnic_detected:
+            print("[FaceService] No face found in CNIC image")
+            return self._fail("Face not detected in CNIC image", cnic_detected, selfie_detected)
+
+        if not selfie_detected:
+            print("[FaceService] No face found in selfie image")
+            return self._fail("Face not detected in selfie image", cnic_detected, selfie_detected)
+
+        # ── Step 3: ArcFace comparison — RetinaFace handles detection internally ──
+        print("[FaceService] Running DeepFace.verify (ArcFace + RetinaFace)...")
+        try:
             result = DeepFace.verify(
-                img1_path=path1, 
-                img2_path=path2, 
-                model_name=self.recognition_model,
-                detector_backend=self.detection_backend,
-                enforce_detection=False
+                img1_path=cnic_img,
+                img2_path=selfie_img,
+                model_name="ArcFace",
+                detector_backend="retinaface",
+                enforce_detection=False,
+                distance_metric="cosine",
             )
 
-            is_match = result['verified']
-            distance = result['distance']
-            # Similarity score calculate karna (0 to 100 range mein)
-            similarity = max(0, 1 - distance) * 100
+            distance = float(result.get("distance", 1.0))
+            threshold = float(result.get("threshold", 0.68))
+            is_match = bool(result.get("verified", False))
+
+            print(f"[FaceService] distance={distance:.4f} | threshold={threshold:.4f} | verified={is_match}")
+
+            # ── FIXED: Similarity score — direct formula, not relative to threshold ──
+            # Old (wrong): (1.0 - distance / threshold) * 100  → gave 3.22 even on match
+            # New (correct): (1.0 - distance) * 100            → gives proper 0-100 score
+            similarity = round(max(0.0, (1.0 - distance) * 100), 2)
 
             return FaceComparisonResult(
-                is_match=bool(is_match),
-                similarity_score=float(similarity),
-                confidence=float(max(0, 1 - distance)),
-                threshold_used=result['threshold'],
+                is_match=is_match,
+                similarity_score=similarity,
+                confidence=round(1.0 - distance, 4),
+                threshold_used=threshold,
                 details={
-                    "model": result['model'],
-                    "distance": distance,
-                    "detector": result['detector_backend']
-                }
+                    "model": "ArcFace",
+                    "detector": "retinaface",
+                    "distance": round(distance, 4),
+                    "threshold": round(threshold, 4),
+                    "cnic_face_detected": cnic_detected,
+                    "selfie_face_detected": selfie_detected,
+                    "message": "Face matched" if is_match else "Face not matched",
+                },
             )
 
         except Exception as e:
-            print(f"Face comparison error: {e}")
-            return FaceComparisonResult(
-                is_match=False, similarity_score=0.0, confidence=0.0, threshold_used=0.6,
-                details={"error": str(e)}
-            )
-        finally:
-            # Clean up temp files
-            for p in temp_paths:
-                if os.path.exists(p):
-                    os.remove(p)
+            print(f"[FaceService] DeepFace.verify error: {e}")
+            import traceback; traceback.print_exc()
+            return self._fail(f"Comparison error: {e}", cnic_detected, selfie_detected)
 
-    def _encode_face_image(self, face_image: np.ndarray) -> str:
-        if face_image is None or face_image.size == 0:
-            return ""
-        if len(face_image.shape) == 2:
-            face_image = cv2.cvtColor(face_image, cv2.COLOR_GRAY2BGR)
-        _, buffer = cv2.imencode('.jpg', face_image)
-        return buffer.tobytes()
+    @staticmethod
+    def _fail(reason: str, cnic_detected: bool = False, selfie_detected: bool = False) -> FaceComparisonResult:
+        return FaceComparisonResult(
+            is_match=False,
+            similarity_score=0.0,
+            confidence=0.0,
+            threshold_used=0.68,
+            details={
+                "error": reason,
+                "cnic_face_detected": cnic_detected,
+                "selfie_face_detected": selfie_detected,
+                "message": "Face not detected" if "not detected" in reason else reason,
+            },
+        )
 
-    def get_face_landmarks(self, image_data: str) -> Dict[str, Any]:
-        """Kept simple as per instructions."""
+    # ── Kept for backwards compatibility ──────────────────────────────────────
+    def get_face_landmarks(self, image_data: str):
         try:
             DeepFace = _get_deepface()
             image = decode_base64_image(image_data)
-            result = DeepFace.analyze(img_path=image, actions=['emotion'], enforce_detection=False)
+            result = DeepFace.analyze(img_path=image, actions=["emotion"], enforce_detection=False)
             return {"success": True, "analysis": result}
         except Exception as e:
             return {"success": False, "error": str(e)}

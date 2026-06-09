@@ -5,6 +5,7 @@ import uvicorn
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 # Path setup for internal imports
 sys.path.insert(0, os.path.dirname(__file__))
@@ -101,27 +102,24 @@ async def verify_cnic(request: VerificationRequest):
         
         # 4. Firebase Storage & Firestore Logic
         if firebase_service.is_available():
-            # Images upload karein (Firebase URLs lene ke liye)
             user_id = request.user_id or "temp_user"
-            upload_tasks = [
+            # Only upload non-None images
+            front_url, selfie_url = await asyncio.gather(
                 firebase_service.upload_image(cnic_front, user_id, "cnic_front"),
-                firebase_service.upload_image(cnic_back, user_id, "cnic_back"),
-                firebase_service.upload_image(selfie, user_id, "selfie")
-            ]
-            urls = await asyncio.gather(*upload_tasks)
-            
-            # Report mein URLs add karein
-            detailed_report["image_urls"] = {
-                "cnic_front": urls[0],
-                "cnic_back": urls[1],
-                "selfie": urls[2]
-            }
+                firebase_service.upload_image(selfie, user_id, "selfie"),
+            )
+            image_urls = {"cnic_front": front_url, "selfie": selfie_url}
+            if cnic_back:
+                image_urls["cnic_back"] = await firebase_service.upload_image(cnic_back, user_id, "cnic_back")
+            detailed_report["image_urls"] = image_urls
             
             # Firestore mein save karein
             await firebase_service.save_verification_result(detailed_report, user_id)
         
         return VerificationResponse(
             success=True,
+
+            
             message=f"Verification Decision: {verification_result.final_decision}",
             result=verification_result
         )
@@ -129,6 +127,43 @@ async def verify_cnic(request: VerificationRequest):
     except Exception as e:
         print(f"Verification Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class FaceVerifyRequest(BaseModel):
+    cnic_front: str
+    selfie: str
+
+
+@app.post("/api/face-verify")
+async def face_verify(request: FaceVerifyRequest):
+    """
+    Simple face-only verification endpoint.
+    Returns: { success, verified, similarity, distance, message }
+    """
+    try:
+        result = await asyncio.to_thread(
+            face_service.compare_faces, request.cnic_front, request.selfie
+        )
+
+        distance = result.details.get("distance", 1.0 - result.confidence)
+        message = result.details.get("message", "Face matched" if result.is_match else "Face not matched")
+
+        return {
+            "success": True,
+            "verified": result.is_match,
+            "similarity": result.similarity_score,
+            "distance": distance,
+            "message": message,
+        }
+    except Exception as e:
+        print(f"[face-verify] Error: {e}")
+        return {
+            "success": False,
+            "verified": False,
+            "similarity": 0.0,
+            "distance": 1.0,
+            "message": str(e),
+        }
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

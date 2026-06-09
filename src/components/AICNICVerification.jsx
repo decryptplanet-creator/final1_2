@@ -5,21 +5,34 @@ import { CheckCircle, Sparkles, Camera, Upload, X, AlertCircle } from 'lucide-re
 import { useTheme } from '../contexts/ThemeContext';
 import { motion, AnimatePresence } from 'motion/react';
 
+const BACKEND_URL = 'http://localhost:8000';
+
 export function AICNICVerification({ onVerificationComplete, onBack }) {
   const { isDarkMode } = useTheme();
-  const [step, setStep] = useState('upload');
+  const [step, setStep] = useState('form');
+  const [userForm, setUserForm] = useState({ name: '', cnic: '', dob: '', expiry: '' });
+  const [formError, setFormError] = useState('');
   const [cnicFront, setCnicFront] = useState(null);
   const [cnicBack, setCnicBack] = useState(null);
   const [selfieImage, setSelfieImage] = useState(null);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [matchProgress, setMatchProgress] = useState(0);
   const [faceMatched, setFaceMatched] = useState(false);
   const [accuracy, setAccuracy] = useState(0);
+  const [fullScreenMode, setFullScreenMode] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
+  const [verificationResult, setVerificationResult] = useState(null);
+  const cameraSupported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   
   // Refs for file inputs to properly reset them
   const cnicFrontInputRef = useRef(null);
   const cnicBackInputRef = useRef(null);
   const selfieInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
 
   // AI Scanning Animation
   useEffect(() => {
@@ -108,6 +121,172 @@ export function AICNICVerification({ onVerificationComplete, onBack }) {
     setStep('matching');
     setMatchProgress(0);
   };
+
+  const startCamera = async () => {
+    setCameraError(null);
+    setCameraLoading(true);
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera not supported');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, 
+        audio: false 
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setCameraEnabled(true);
+        setFullScreenMode(true);
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.play().catch(() => {});
+          }
+        }, 100);
+      }
+    } catch (err) {
+      console.error('Camera error:', err.message);
+      setCameraError(`Camera failed: ${err.message}. Click "Upload Selfie Photo" instead.`);
+      setCameraEnabled(false);
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  const stopCamera = () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    } catch (e) {
+      console.error('Stop camera error:', e);
+    }
+    setCameraEnabled(false);
+    setFullScreenMode(false);
+  };
+
+  useEffect(() => {
+    return () => stopCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
+  useEffect(() => {
+    if (step === 'selfie') {
+      startCamera();
+    }
+    // stop camera when leaving selfie step or component unmount
+    if (step !== 'selfie') stopCamera();
+    return () => stopCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // Full Screen Camera Mode
+  if (fullScreenMode && cameraEnabled) {
+    return (
+      <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+        {/* Full Screen Video */}
+        <video 
+          ref={videoRef} 
+          autoPlay 
+          playsInline 
+          muted 
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ transform: 'scaleX(-1)' }}
+        />
+
+        {/* Face Detection Circle Overlay */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <svg className="size-80 md:size-96" viewBox="0 0 256 256">
+            {/* Outer Circle - Face Area */}
+            <circle
+              cx="128"
+              cy="128"
+              r="100"
+              fill="none"
+              stroke="#2563EB"
+              strokeWidth="3"
+              strokeDasharray="8 4"
+              className="animate-pulse"
+            />
+            {/* Inner Fill */}
+            <circle cx="128" cy="128" r="100" fill="rgba(37, 99, 235, 0.05)" />
+            
+            {/* Corner Markers */}
+            <line x1="40" y1="40" x2="60" y2="40" stroke="#2563EB" strokeWidth="2" />
+            <line x1="40" y1="40" x2="40" y2="60" stroke="#2563EB" strokeWidth="2" />
+            
+            <line x1="216" y1="40" x2="196" y2="40" stroke="#2563EB" strokeWidth="2" />
+            <line x1="216" y1="40" x2="216" y2="60" stroke="#2563EB" strokeWidth="2" />
+            
+            <line x1="40" y1="216" x2="60" y2="216" stroke="#2563EB" strokeWidth="2" />
+            <line x1="40" y1="216" x2="40" y2="196" stroke="#2563EB" strokeWidth="2" />
+            
+            <line x1="216" y1="216" x2="196" y2="216" stroke="#2563EB" strokeWidth="2" />
+            <line x1="216" y1="216" x2="216" y2="196" stroke="#2563EB" strokeWidth="2" />
+          </svg>
+
+          {/* Instructions */}
+          <div className="absolute bottom-32 text-center text-white">
+            <p className="text-lg font-medium">Position your face in the circle</p>
+            <p className="text-sm text-gray-300 mt-1">Make sure you're well lit and facing the camera</p>
+          </div>
+        </div>
+
+        {/* Camera Controls - Bottom */}
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 z-50">
+          <Button
+            onClick={() => {
+              stopCamera();
+              setSelfieImage(null);
+            }}
+            variant="outline"
+            className="bg-white/20 hover:bg-white/30 text-white border-white"
+            size="lg"
+          >
+            <X className="size-5" />
+          </Button>
+
+          <Button
+            onClick={() => {
+              if (videoRef.current) {
+                const canvas = document.createElement('canvas');
+                const video = videoRef.current;
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                  ctx.scale(-1, 1);
+                  ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+                  const imageData = canvas.toDataURL('image/jpeg');
+                  handleSelfieCapture(imageData);
+                  stopCamera();
+                  setFullScreenMode(false);
+                }
+              }
+            }}
+            className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white"
+            size="lg"
+          >
+            <Camera className="size-5" />
+            Capture Photo
+          </Button>
+        </div>
+
+        {/* Close Button - Top Right */}
+        <button
+          onClick={() => {
+            stopCamera();
+            setSelfieImage(null);
+          }}
+          className="absolute top-6 right-6 text-white hover:bg-white/20 p-2 rounded-lg transition z-50"
+        >
+          <X className="size-6" />
+        </button>
+      </div>
+    );
+  }
 
   // Step 1: Upload CNIC
   if (step === 'upload') {
@@ -326,29 +505,45 @@ export function AICNICVerification({ onVerificationComplete, onBack }) {
               Position your face within the circle for AI face matching
             </p>
 
-            {/* Selfie Capture Area with Face Overlay */}
-            <div className="relative rounded-lg overflow-hidden bg-gray-900 aspect-video">
+            {/* Selfie Capture Area with Face Overlay - live camera preview and capture */}
+            <div className="relative rounded-lg overflow-hidden bg-gray-900 aspect-video flex items-center justify-center min-h-[400px]">
               {!selfieImage ? (
-                <div className="relative w-full h-full flex items-center justify-center">
-                  {/* Face Circle Overlay */}
-                  <div className="relative">
-                    <svg className="size-64" viewBox="0 0 256 256">
-                      <circle
-                        cx="128"
-                        cy="128"
-                        r="100"
-                        fill="none"
-                        stroke="#2563EB"
-                        strokeWidth="3"
-                        strokeDasharray="8 4"
-                        className="animate-pulse"
-                      />
-                      <circle cx="128" cy="128" r="100" fill="rgba(37, 99, 235, 0.1)" />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Camera className="size-12 text-[#2563EB]" />
+                <div className="w-full h-full relative">
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted 
+                    className={`w-full h-full object-cover block ${cameraEnabled ? 'visible' : 'hidden'}`}
+                    style={{ transform: 'scaleX(-1)' }}
+                  />
+                  {!cameraEnabled && (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="relative">
+                        <svg className="size-64" viewBox="0 0 256 256">
+                          <circle
+                            cx="128"
+                            cy="128"
+                            r="100"
+                            fill="none"
+                            stroke="#2563EB"
+                            strokeWidth="3"
+                            strokeDasharray="8 4"
+                            className="animate-pulse"
+                          />
+                          <circle cx="128" cy="128" r="100" fill="rgba(37, 99, 235, 0.1)" />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Camera className="size-12 text-[#2563EB]" />
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  {cameraError && (
+                    <div className="absolute bottom-2 left-2 right-2 text-xs text-red-400 bg-black/50 p-2 rounded">
+                      {cameraError}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <img src={selfieImage} alt="Selfie" className="w-full h-full object-cover" />
@@ -364,31 +559,36 @@ export function AICNICVerification({ onVerificationComplete, onBack }) {
                   if (selfieInputRef.current) {
                     selfieInputRef.current.value = '';
                   }
+                  setCameraError(null);
                 }}
               >
                 Retake
               </Button>
               <Button
                 className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8]"
-                onClick={() => {
-                  // Simulate selfie capture
+                onClick={async () => {
+                  if (!cameraEnabled) {
+                    await startCamera();
+                    return;
+                  }
+                  if (!videoRef.current) return;
+                  const video = videoRef.current;
+                  const w = video.videoWidth || 640;
+                  const h = video.videoHeight || 480;
                   const canvas = document.createElement('canvas');
-                  canvas.width = 640;
-                  canvas.height = 480;
+                  canvas.width = w;
+                  canvas.height = h;
                   const ctx = canvas.getContext('2d');
                   if (ctx) {
-                    ctx.fillStyle = '#2563EB';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = 'white';
-                    ctx.font = '24px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Selfie Captured', canvas.width / 2, canvas.height / 2);
+                    ctx.drawImage(video, 0, 0, w, h);
                   }
-                  handleSelfieCapture(canvas.toDataURL());
+                  const dataUrl = canvas.toDataURL('image/png');
+                  handleSelfieCapture(dataUrl);
                 }}
+                disabled={cameraLoading}
               >
                 <Camera className="size-4 mr-2" />
-                Capture Selfie
+                {cameraLoading ? 'Starting Camera...' : cameraEnabled ? 'Capture Selfie' : 'Open Camera'}
               </Button>
             </div>
 
@@ -406,6 +606,7 @@ export function AICNICVerification({ onVerificationComplete, onBack }) {
               ref={selfieInputRef}
               type="file"
               accept="image/*"
+              capture="user"
               className="hidden"
               id="selfie-upload"
               onChange={(e) => {

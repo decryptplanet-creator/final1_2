@@ -1,6 +1,36 @@
 node_modules/
 .env
+.env.local
+.env.*.local
 .venv/
 __pycache__/
 *.pyc
+
+# Secret keys - NEVER commit these
 *service-account*.json
+backend/google-vision-service-account.json
+backend/firebase-service-account.json
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+vite-dev.log
+backend/backend-run.log
+
+# Debug images (generated at runtime)
+backend/debug_images/
+
+# Editor / AI tools
+.vscode/
+.idea/
+.cursor/
+.claude/
+.sixth/
+
+# OS
+.DS_Store
+Thumbs.db

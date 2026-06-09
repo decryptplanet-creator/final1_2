@@ -24,19 +24,19 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     
     # Verification Thresholds
-    face_match_threshold: float = 0.6
-    text_match_threshold: float = 0.8
-    tampering_threshold: float = 0.7
-    genuine_score_threshold: float = 80
-    suspicious_score_threshold: float = 70
-    
-    # Scoring Weights
-    text_match_weight: float = 0.20
-    face_match_weight: float = 0.30
-    layout_weight: float = 0.15
-    chip_weight: float = 0.10
-    tampering_weight: float = 0.15
-    ocr_confidence_weight: float = 0.10
+    face_match_threshold: float = 0.5
+    text_match_threshold: float = 0.7
+    tampering_threshold: float = 0.5
+    genuine_score_threshold: float = 65.0  # was 80 — too strict
+    suspicious_score_threshold: float = 45.0 # was 70 — too strict
+
+    # Scoring Weights (must sum to 1.0)
+    text_match_weight: float = 0.30    # was 0.20
+    face_match_weight: float = 0.35    # was 0.30
+    layout_weight: float = 0.10        # was 0.15
+    chip_weight: float = 0.00          # was 0.10 — disabled (unreliable)
+    tampering_weight: float = 0.15     # same
+    ocr_confidence_weight: float = 0.10 # same
 
     @field_validator("debug", mode="before")
     @classmethod
@@ -52,8 +52,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
-        # Some deployments may include extra env vars (e.g. vite_api_url).
-        # We don't want them to crash the backend.
         extra = "ignore"
     
     @property

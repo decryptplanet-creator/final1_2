@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { AlertCircle, ReceiptText, RotateCcw, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ReceiptText, RotateCcw, ShieldCheck, X } from 'lucide-react';
 import { EscrowStatusBadge } from './EscrowStatusBadge';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -10,18 +10,30 @@ export function PaymentFailureModal({ onClose, onRetry, orderData, transaction }
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <Card className={`max-w-xl w-full ${isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}`}>
-        <CardHeader className={`text-center border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <div className="flex justify-center mb-4">
-            <div className="size-20 rounded-full bg-red-500/10 flex items-center justify-center">
-              <AlertCircle className="size-12 text-red-600" />
+        <CardHeader className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 text-center">
+              <div className="flex justify-center mb-4">
+                <div className="size-20 rounded-full bg-red-500/10 flex items-center justify-center">
+                  <AlertCircle className="size-12 text-red-600" />
+                </div>
+              </div>
+              <CardTitle className={`text-2xl ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
+                Payment Failed
+              </CardTitle>
+              <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                No funds were charged or deposited into escrow.
+              </p>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className={isDarkMode ? 'text-gray-400 hover:text-[#F9FAFB]' : 'text-gray-400 hover:text-[#1F2933]'}
+            >
+              <X className="size-5" />
+            </Button>
           </div>
-          <CardTitle className={`text-2xl ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
-            Payment Failed
-          </CardTitle>
-          <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            No funds were charged or deposited into escrow.
-          </p>
         </CardHeader>
 
         <CardContent className="p-6 space-y-5">

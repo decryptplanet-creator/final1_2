@@ -472,7 +472,7 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
         {showLocationModal && (
           <LocationModal
             onClose={() => setShowLocationModal(false)}
-            onSelectLocation={handleLocationSelect}
+            onSelect={handleLocationSelect}
           />
         )}
       </div>

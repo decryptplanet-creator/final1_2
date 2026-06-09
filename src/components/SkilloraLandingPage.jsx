@@ -17,7 +17,9 @@ import {
   Moon,
   Sun,
   Shield,
-  Sparkles
+  Sparkles,
+  ArrowLeft,
+  Bot
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -27,6 +29,8 @@ import { TopRatedList } from './TopRatedList';
 import { IndividualProfile } from './IndividualProfile';
 import { EnhancedHelpOverlay } from './HelpCentre';
 import { useTheme } from '../contexts/ThemeContext';
+import { DemoModal } from './DemoModal';
+import { EscrowFlowDemoButton } from './EscrowFlowDemoButton';
 
 // Animated Counter Component
 function AnimatedNumber({ value, duration = 2000 }) {
@@ -56,7 +60,7 @@ function AnimatedNumber({ value, duration = 2000 }) {
 }
 
 // Pehle sirf onUserTypeSelect tha, ab onLogin bhi add karein
-export function LandingPage({ onUserTypeSelect, onLogin }) {
+export function LandingPage({ onUserTypeSelect, onLogin, onAiDemo }) {
   const { isDarkMode, toggleTheme } = useTheme();
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,6 +72,7 @@ export function LandingPage({ onUserTypeSelect, onLogin }) {
   const [showTopRated, setShowTopRated] = useState(null);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [selectedProfileType, setSelectedProfileType] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const handleGetStarted = () => {
     setShowRoleSelection(true);
@@ -152,6 +157,7 @@ export function LandingPage({ onUserTypeSelect, onLogin }) {
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-[#1F2933]' : 'bg-[#F9FAFB]'}`}>
+      <DemoModal />
       {/* Header */}
       <header className={`${isDarkMode ? 'bg-[#1F2933] border-gray-700' : 'bg-[#F9FAFB] border-gray-200'} border-b`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -204,6 +210,13 @@ export function LandingPage({ onUserTypeSelect, onLogin }) {
                 className={`${isDarkMode ? 'text-[#F9FAFB] hover:text-[#2563EB]' : 'text-[#1F2933] hover:text-[#2563EB]'}`}
               >
                 About Us
+              </button>
+              <button 
+                onClick={() => setIsChatOpen(true)}
+                className={`p-2 rounded-full ${isDarkMode ? 'text-[#F9FAFB] hover:text-[#2563EB]' : 'text-[#1F2933] hover:text-[#2563EB]'}`}
+                title="Chatbot"
+              >
+                <Bot className="size-5" />
               </button>
             </nav>
             
@@ -289,6 +302,24 @@ onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           <p className="text-center text-white mt-4">
             Trust in every talent
           </p>
+          <div className="flex justify-center mt-6 gap-6">
+            <div className="flex flex-col items-center gap-1">
+              <EscrowFlowDemoButton />
+              <span className="text-white text-xs font-medium mt-1">Escrow Demo</span>
+            </div>
+            {onAiDemo && (
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={onAiDemo}
+                  className="size-14 rounded-full bg-emerald-600 text-white shadow-xl flex items-center justify-center border border-white/20 transition-all hover:scale-110"
+                  title="AI Features Demo"
+                >
+                  <Sparkles className="size-6 text-white" />
+                </button>
+                <span className="text-white text-xs font-medium mt-1">AI Demo</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -776,6 +807,19 @@ onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Chatbot — original full-screen overlay */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-[10000] bg-white dark:bg-slate-900 flex flex-col">
+          <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
+            <button onClick={() => setIsChatOpen(false)} className="flex items-center gap-2">
+              <ArrowLeft size={24} /> <span>Back to Platform</span>
+            </button>
+            <X size={24} onClick={() => setIsChatOpen(false)} className="cursor-pointer" />
+          </div>
+          <iframe src="http://localhost:8501/?embed=true" className="w-full h-full border-none" title="Legal AI Assistant" />
         </div>
       )}
     </div>

@@ -66,8 +66,9 @@ class OCRService:
                     expiry_date=None
                 )
             
-            # Get full text
+            # Get full text and sanitize to skip unreadable characters
             full_text = texts[0].description if texts else ""
+            full_text = full_text.encode('utf-8', errors='ignore').decode('utf-8')
             
             # Parse CNIC specific information
             parsed_data = self._parse_cnic_text(full_text)

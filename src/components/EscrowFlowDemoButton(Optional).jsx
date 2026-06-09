@@ -10,7 +10,7 @@ export function EscrowFlowDemoButton() {
     <>
       <button
         onClick={() => setShowDemo(true)}
-        className="fixed bottom-24 left-6 size-14 rounded-full bg-black text-white shadow-xl flex items-center justify-center border border-white/20 transition-all hover:scale-110 z-40"
+        className="size-14 rounded-full bg-blue-600 text-white shadow-xl flex items-center justify-center border border-white/20 transition-all hover:scale-110"
         title="Open Escrow Payment Page"
       >
         <ShieldCheck className="size-6 text-white" />

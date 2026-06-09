@@ -4,7 +4,7 @@ import { Badge } from './ui/labelstatus';
 import { useTheme } from '../contexts/ThemeContext';
 import { useState } from 'react';
 import { IndividualProfile } from './IndividualProfile';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { EmailModal } from './EmailModal(Optional)';
 
 export function ViewAllModal({ onClose, type, onProfileClick, activeFilter, onFilterChange }) {
@@ -236,7 +236,7 @@ export function ViewAllModal({ onClose, type, onProfileClick, activeFilter, onFi
 
       {/* Chat Modal */}
       {showChat && selectedForContact && (
-        <ChatModal
+        <ChatModule
           onClose={() => {
             setShowChat(false);
             setSelectedForContact(null);
@@ -262,3 +262,4 @@ export function ViewAllModal({ onClose, type, onProfileClick, activeFilter, onFi
 /* Displays a modal to view and filter all users (labour, manufacturers, clients) with options to see profiles and contact them.
 
 This is for web-based (React frontend) but can also be used in hybrid apps → so dono (web + app UI). */
+

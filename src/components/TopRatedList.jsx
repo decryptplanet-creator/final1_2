@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { X, Star, MapPin, Briefcase, Factory, HardHat, ChevronRight, Award, TrendingUp, Shield } from 'lucide-react';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { EmailModal } from './EmailModal(Optional)';
 import { LocationModal } from './LocationModal';
 
@@ -351,7 +351,7 @@ export function TopRatedList({ userType, onClose, onViewProfile }) {
       </div>
 
       {/* Modals */}
-      {showChat && <ChatModal onClose={() => setShowChat(false)} />}
+      {showChat && <ChatModule onClose={() => setShowChat(false)} />}
       {showEmail && selectedProfile && (
         <EmailModal 
           onClose={() => setShowEmail(false)}
@@ -372,3 +372,4 @@ export function TopRatedList({ userType, onClose, onViewProfile }) {
 /* This file displays a top-rated list of clients, manufacturers, or labour with ratings, trust scores, and profile interaction options.
 
 It is web-based (React UI component) but can also be used for both web & app (if adapted to mobile frontend). */
+

@@ -7,7 +7,7 @@ import { Sparkles, MessageSquare, Bell, LogOut, Search, HardHat, Star, Package, 
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { SearchModal } from './SearchModal';
 import { ProfileModal } from './ProfileMangement';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { HireLabourModal } from './HireLabourModal';
 import { HorizontalProfiles } from './HorizontalProfiles';
 import { AcceptOrderModal } from './AcceptOrderModal';
@@ -457,7 +457,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
       )}
 
       {showChat && (
-        <ChatModal 
+        <ChatModule 
           onClose={() => setShowChat(false)}
         />
       )}
@@ -523,3 +523,5 @@ export function ManufacturerDashboard({ user, onLogout }) {
 }
 /* This file is the Manufacturer Dashboard component for managing orders, labour, and user interactions.
 It is designed for web-based React applications, not a native mobile app. */
+
+

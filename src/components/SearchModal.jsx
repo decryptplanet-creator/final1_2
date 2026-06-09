@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/labelstatus';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs list';
 import { X, Search, Factory, HardHat, Star, MapPin, Award, MessageSquare } from 'lucide-react';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { IndividualProfile } from './IndividualProfile';
 
 export function SearchModal({ onClose, userType }) {
@@ -435,7 +435,7 @@ export function SearchModal({ onClose, userType }) {
 
       {/* Chat Modal */}
       {showChat && selectedProfile && (
-        <ChatModal 
+        <ChatModule 
           onClose={() => {
             setShowChat(false);
             setSelectedProfile(null);
@@ -465,3 +465,4 @@ export function SearchModal({ onClose, userType }) {
 }
 /* Purpose: This file creates a search modal to find manufacturers and labour with filters, ratings, and chat/profile options.
 Platform: Web-based (React UI), but can be used for both web and app if adapted. */
+

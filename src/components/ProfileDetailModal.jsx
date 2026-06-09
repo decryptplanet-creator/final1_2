@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { X, Star, MapPin, Mail, MessageSquare, Shield, Award, Briefcase, Clock, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { LocationModal } from './LocationModal';
 
 export function ProfileDetailModal({ onClose, profile, onContact, onHire }) {
@@ -216,7 +216,7 @@ export function ProfileDetailModal({ onClose, profile, onContact, onHire }) {
         </Card>
       </div>
 
-      {showChat && <ChatModal onClose={() => setShowChat(false)} />}
+      {showChat && <ChatModule onClose={() => setShowChat(false)} />}
       {showLocation && (
         <LocationModal
           onClose={() => setShowLocation(false)}
@@ -230,3 +230,4 @@ export function ProfileDetailModal({ onClose, profile, onContact, onHire }) {
 /*User ka detailed profile modal (view profile, ratings, skills, reviews, contact/hire options show karne ke liye).
 
 Yeh web-based React component hai, lekin same concept ko mobile app me bhi use kiya ja sakta hai (so dono ke liye adaptable). */
+

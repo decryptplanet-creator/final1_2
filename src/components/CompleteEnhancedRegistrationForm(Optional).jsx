@@ -83,7 +83,6 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
   // #region agent log
   useEffect(() => {
     cnicMountId.current += 1;
-    fetch('http://127.0.0.1:7384/ingest/ca9ddaab-3aa0-41ab-ad09-4d194036d0a8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'75d1ea'},body:JSON.stringify({sessionId:'75d1ea',location:'CompleteEnhancedRegistrationForm(Optional).jsx:mount',message:'component_mount',data:{mountCount:cnicMountId.current,step},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
   }, []);
   // #endregion
 
@@ -94,7 +93,6 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
   const handleCnicFrontUpload = (e) => {
     const file = e.target.files?.[0];
     // #region agent log
-    fetch('http://127.0.0.1:7384/ingest/ca9ddaab-3aa0-41ab-ad09-4d194036d0a8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'75d1ea'},body:JSON.stringify({sessionId:'75d1ea',location:'CompleteEnhancedRegistrationForm(Optional).jsx:handleCnicFrontUpload',message:'cnic_front_change',data:{hasFile:!!file,fileName:file?.name,inputId:e.target?.id||'(no-id)'},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
     // #endregion
     if (file) {
       setCnicFrontFile(file);
@@ -107,7 +105,6 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
   const handleCnicBackUpload = (e) => {
     const file = e.target.files?.[0];
     // #region agent log
-    fetch('http://127.0.0.1:7384/ingest/ca9ddaab-3aa0-41ab-ad09-4d194036d0a8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'75d1ea'},body:JSON.stringify({sessionId:'75d1ea',location:'CompleteEnhancedRegistrationForm(Optional).jsx:handleCnicBackUpload',message:'cnic_back_change',data:{hasFile:!!file,fileName:file?.name,inputId:e.target?.id||'(no-id)'},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
     // #endregion
     if (file) {
       setCnicBackFile(file);
@@ -118,14 +115,12 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
 
   const openCnicFrontPicker = () => {
     // #region agent log
-    fetch('http://127.0.0.1:7384/ingest/ca9ddaab-3aa0-41ab-ad09-4d194036d0a8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'75d1ea'},body:JSON.stringify({sessionId:'75d1ea',location:'CompleteEnhancedRegistrationForm(Optional).jsx:openCnicFrontPicker',message:'click_front_picker',data:{},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
     // #endregion
     cnicFrontInputRef.current?.click();
   };
 
   const openCnicBackPicker = () => {
     // #region agent log
-    fetch('http://127.0.0.1:7384/ingest/ca9ddaab-3aa0-41ab-ad09-4d194036d0a8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'75d1ea'},body:JSON.stringify({sessionId:'75d1ea',location:'CompleteEnhancedRegistrationForm(Optional).jsx:openCnicBackPicker',message:'click_back_picker',data:{},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
     // #endregion
     cnicBackInputRef.current?.click();
   };
@@ -586,7 +581,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
         {showLocationModal && (
           <LocationModal
             onClose={() => setShowLocationModal(false)}
-            onSelectLocation={handleLocationSelect}
+            onSelect={handleLocationSelect}
           />
         )}
       </div>
@@ -958,3 +953,4 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
 /*Purpose: This file handles user registration with multi-step form (basic info + identity verification like CNIC, selfie, documents) and creates a verified user profile.
 
 Type: It is for web-based application (React frontend). */
+

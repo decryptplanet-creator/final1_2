@@ -51,6 +51,7 @@ class FaceDetectionResult(BaseModel):
     face_location: Optional[Dict[str, int]] = None
     confidence: float = 0.0
     face_image_base64: Optional[str] = None
+    details: Dict[str, Any] = Field(default_factory=dict)
 
 
 class FaceComparisonResult(BaseModel):
@@ -115,12 +116,12 @@ class VerificationResult(BaseModel):
 
 class VerificationRequest(BaseModel):
     """Request model for verification."""
-    user_name: str = Field(..., min_length=1)
-    user_cnic: str = Field(..., min_length=13, max_length=15)
-    user_dob: str = Field(...)
+    user_name: Optional[str] = None
+    user_cnic: Optional[str] = None
+    user_dob: Optional[str] = None
     user_expiry: Optional[str] = None
     cnic_front: str = Field(..., min_length=1)
-    cnic_back: str = Field(..., min_length=1)
+    cnic_back: Optional[str] = None
     selfie: str = Field(..., min_length=1)
     user_id: Optional[str] = None
 

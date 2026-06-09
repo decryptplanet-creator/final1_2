@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { 
@@ -28,6 +28,18 @@ export function EscrowDemoPage({ onClose }) {
   const [currentScreen, setCurrentScreen] = useState('home');
   const [orderData, setOrderData] = useState(null);
   const [paymentTransaction, setPaymentTransaction] = useState(null);
+
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    if (currentScreen !== 'home') {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = originalOverflow;
+    }
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [currentScreen]);
 
   // Mock data
   const mockOrder = {
@@ -148,7 +160,17 @@ export function EscrowDemoPage({ onClose }) {
   ];
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-[#1F2933]' : 'bg-[#F9FAFB]'}`}>
+    <div className={`min-h-screen overflow-y-auto ${isDarkMode ? 'bg-[#1F2933]' : 'bg-[#F9FAFB]'}`}>
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="fixed top-4 right-4 z-50 rounded-full border border-slate-300 bg-white/90 p-2 text-slate-900 shadow-lg transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900/90 dark:text-white dark:hover:bg-slate-800"
+          aria-label="Close escrow"
+        >
+          <X className="size-5" />
+        </button>
+      )}
       {/* Header */}
       <header className={`border-b ${isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

@@ -82,10 +82,10 @@ export function EnhancedAdminDashboard({ onLogout }) {
     },
   ]);
 
-  const stats = {
+  let stats = {
     totalTransactions: 2458000,
     pendingVerifications: managedUsers.filter((user) => user.verificationStatus === 'pending').length,
-    activeDisputes: 5,
+    activeDisputes: 0,
     ppcViolations: 3,
   };
 
@@ -182,6 +182,10 @@ export function EnhancedAdminDashboard({ onLogout }) {
       ],
     },
   ]);
+
+  const activeDisputes = disputes.filter((dispute) => dispute.status !== 'resolved').length;
+  const escalatedDisputes = disputes.filter((dispute) => dispute.status === 'escalated').length;
+  stats = { ...stats, activeDisputes };
 
   const [systemLogs, setSystemLogs] = useState([
     {
@@ -1014,13 +1018,27 @@ export function EnhancedAdminDashboard({ onLogout }) {
           {/* Disputes View */}
           {activeView === 'disputes' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
-                  Dispute Resolution Center
-                </h2>
-                <Badge className="bg-red-600/20 text-red-400 border-red-600/30">
-                  {disputes.filter(d => d.status === 'escalated').length} Escalated
-                </Badge>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
+                    Dispute Resolution Center
+                  </h2>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Review escalated disputes, analyze evidence, and take final actions.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-red-600/20 text-red-400 border-red-600/30">
+                    {escalatedDisputes} Escalated
+                  </Badge>
+                  <Button
+                    onClick={() => setActiveView('disputes')}
+                    variant="outline"
+                    className={`${isDarkMode ? 'text-white border-gray-700' : 'text-[#1F2933] border-gray-300'}`}
+                  >
+                    View All Disputes
+                  </Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1077,6 +1095,42 @@ export function EnhancedAdminDashboard({ onLogout }) {
                                 PPC
                               </Badge>
                             )}
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedDispute(dispute);
+                                setActiveView('disputes');
+                                setAdminMessageDraft('');
+                              }}
+                            >
+                              Open
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleResolveDispute(dispute, 'refund');
+                              }}
+                              disabled={dispute.status === 'resolved'}
+                            >
+                              Refund
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleResolveDispute(dispute, 'release');
+                              }}
+                              disabled={dispute.status === 'resolved'}
+                            >
+                              Release
+                            </Button>
                           </div>
                         </div>
                       ))}

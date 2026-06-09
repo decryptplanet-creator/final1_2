@@ -38,6 +38,8 @@ import { SettingsModal } from './SettingsModal';
 import { ViewAllModal } from './ViewAllModal';
 import { HireConfirmationModal } from './HireConfirmationModal';
 import { EditProfileModal } from './EditProfileModal';
+import { EscrowDemoPage } from './EscrowDemoPage';
+import EscrowPage from './escrow/EscrowPage';
 import { IndividualProfile } from './IndividualProfile';
 import { FilterModal } from './AdvancedFilterModal';
 import { PaymentDetailsModal } from './PaymentDetailsModal';
@@ -58,6 +60,8 @@ export function ClientDashboard({ user, onLogout }) {
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
+  const [showEscrowDemo, setShowEscrowDemo] = useState(false);
+  const [showEscrowPage, setShowEscrowPage] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showViewAll, setShowViewAll] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -113,19 +117,48 @@ export function ClientDashboard({ user, onLogout }) {
     const newOrder = {
       id: Math.random().toString(36).substr(2, 9),
       title: orderData.title || '',
+      productName: orderData.title || orderData.productName || '',
       description: orderData.description || '',
       quantity: orderData.quantity || 0,
       budget: orderData.budget || 0,
+      totalAmount: orderData.budget || 0,
+      advancePercentage: 100,
+      advanceAmount: orderData.budget || 0,
       deadline: orderData.deadline || '',
       status: 'pending',
       escrowStatus: { total: orderData.budget || 0, deposited: 0, released: 0 }
     };
     setOrders([newOrder, ...orders]);
+    setSelectedOrder(newOrder);
     setShowPostOrder(false);
+    setShowEscrowPage(true);
   };
 
   const handleUpdateOrder = (orderId, updates) => {
     setOrders(orders.map(order => order.id === orderId ? { ...order, ...updates } : order));
+  };
+
+  const handleEscrowPaymentSuccess = (txn) => {
+    setOrders((prev) => {
+      const next = prev.map(order => {
+        if (order.id === txn.orderId) {
+          const deposited = txn.amount || order.escrowStatus?.deposited || 0;
+          return {
+            ...order,
+            escrowStatus: { ...order.escrowStatus, deposited },
+            payments: [...(order.payments || []), txn],
+            status: order.status === 'pending' ? 'in-progress' : order.status
+          };
+        }
+        return order;
+      });
+      const updated = next.find(o => o.id === txn.orderId);
+      if (updated) {
+        setSelectedOrder(updated);
+        setShowEscrowPage(false);
+      }
+      return next;
+    });
   };
 
   const getCurrentUserId = () => user.id || user._id || currentUser?.id || currentUser?._id || 'client_user';
@@ -163,6 +196,17 @@ export function ClientDashboard({ user, onLogout }) {
     return orders;
   };
 
+  // If user opened the full-page escrow screen, show it instead of the dashboard
+  if (showEscrowPage && selectedOrder) {
+    return (
+      <EscrowPage
+        orderData={selectedOrder}
+        onClose={() => setShowEscrowPage(false)}
+        onPaymentSuccess={handleEscrowPaymentSuccess}
+      />
+    );
+  }
+
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-[#1F2933]' : 'bg-[#F9FAFB]'}`}>
       <header className={`border-b ${isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}`}>
@@ -185,8 +229,9 @@ export function ClientDashboard({ user, onLogout }) {
             <div className="flex items-center gap-2">
               <NotificationCenter userType="client" />
 
-              <Button variant="ghost" size="icon" onClick={() => setShowEmail(true)} title="Email" className="text-[#2563EB] hover:bg-[#2563EB]/10">
-                <Mail className="size-5" />
+              <Button variant="ghost" onClick={() => setShowEscrowDemo(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10">
+                <Shield className="size-4 mr-2" />
+                Open Escrow
               </Button>
               <Button variant="ghost" size="icon" onClick={() => openChat()} title="Messages" className="text-[#2563EB] hover:bg-[#2563EB]/10">
                 <MessageSquare className="size-5" />
@@ -505,6 +550,10 @@ export function ClientDashboard({ user, onLogout }) {
 )}
       {showNotifications && <NotificationsModal onClose={() => setShowNotifications(false)} />}
       {showEmail && <EmailModal onClose={() => setShowEmail(false)} />}
+      {showEscrowDemo && <EscrowDemoPage onClose={() => setShowEscrowDemo(false)} />}
+      {showEscrowPage && selectedOrder && (
+        <EscrowPage orderData={selectedOrder} onClose={() => setShowEscrowPage(false)} onPaymentSuccess={handleEscrowPaymentSuccess} />
+      )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} userType="client" />}
       {showViewAll && (
         <ViewAllModal 

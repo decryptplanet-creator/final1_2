@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useTheme } from '../contexts/ThemeContext';
 import { useState } from 'react';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { EmailModal } from './EmailModal';
 
 export function HelpModal({ onClose }) {
@@ -185,7 +185,7 @@ export function HelpModal({ onClose }) {
       </div>
 
       {/* Chat Modal */}
-      {showChat && <ChatModal onClose={() => setShowChat(false)} />}
+      {showChat && <ChatModule onClose={() => setShowChat(false)} />}
       
       {/* Email Modal */}
       {showEmail && (
@@ -202,3 +202,4 @@ export function HelpModal({ onClose }) {
 /*Purpose: This file creates a Help & Support modal with search, FAQs, and contact options like chat, email, and call support.
 
 Type: It is a frontend component, so it can be used for both web apps and hybrid (mobile/web) apps. */
+

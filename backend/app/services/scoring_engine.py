@@ -2,9 +2,9 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
 from app.schemas import (
-    VerificationResult, VerificationScore, OCRResult, 
-    LayoutVerificationResult, ChipDetectionResult, 
-    TamperingDetectionResult, FaceComparisonResult, 
+    VerificationResult, VerificationScore, OCRResult,
+    LayoutVerificationResult, ChipDetectionResult,
+    TamperingDetectionResult, FaceComparisonResult,
     TextMatchResult, VerificationRequest
 )
 from app.config import settings
@@ -16,7 +16,7 @@ class ScoringEngine:
     Central scoring engine that combines all verification modules
     into a final decision.
     """
-    
+
     def __init__(self):
         """Initialize scoring engine with configured weights."""
         self.weights = {
@@ -27,7 +27,7 @@ class ScoringEngine:
             'tampering': settings.tampering_weight,
             'ocr_confidence': settings.ocr_confidence_weight
         }
-        
+
         self.thresholds = {
             'genuine': settings.genuine_score_threshold,
             'suspicious': settings.suspicious_score_threshold,
@@ -35,7 +35,7 @@ class ScoringEngine:
             'text_match': settings.text_match_threshold,
             'tampering': settings.tampering_threshold
         }
-    
+
     def calculate_final_result(
         self,
         ocr_result: OCRResult,
@@ -47,17 +47,6 @@ class ScoringEngine:
     ) -> VerificationResult:
         """
         Calculate final verification result by combining all scores.
-        
-        Args:
-            ocr_result: OCR extraction result
-            layout_result: Layout verification result
-            chip_result: Chip detection result
-            tampering_result: Tampering detection result
-            face_comparison_result: Face comparison result
-            user_input: User-provided data for verification
-            
-        Returns:
-            VerificationResult with final decision
         """
         # Calculate text match score
         text_match_result = self._calculate_text_match(ocr_result, user_input)
@@ -67,7 +56,7 @@ class ScoringEngine:
             self.weights['text_match'],
             text_match_result.match_score >= self.thresholds['text_match'] * 100
         )
-        
+
         # Calculate face match score
         face_score = face_comparison_result.similarity_score
         face_match_score = self._create_verification_score(
@@ -76,7 +65,7 @@ class ScoringEngine:
             self.weights['face_match'],
             face_comparison_result.is_match
         )
-        
+
         # Calculate layout score
         layout_score = self._create_verification_score(
             "Layout Verification",
@@ -84,15 +73,15 @@ class ScoringEngine:
             self.weights['layout'],
             layout_result.is_valid
         )
-        
-        # Calculate chip score
+
+        # Calculate chip score (weight=0.00, does not affect final score)
         chip_score = self._create_verification_score(
             "Chip Detection",
             chip_result.score,
             self.weights['chip'],
             chip_result.chip_present
         )
-        
+
         # Calculate tampering score
         tampering_score = self._create_verification_score(
             "Tampering Detection",
@@ -100,7 +89,7 @@ class ScoringEngine:
             self.weights['tampering'],
             not tampering_result.is_tampered
         )
-        
+
         # Calculate OCR confidence score
         ocr_confidence_score = self._create_verification_score(
             "OCR Confidence",
@@ -108,7 +97,7 @@ class ScoringEngine:
             self.weights['ocr_confidence'],
             ocr_result.confidence >= 70
         )
-        
+
         # Calculate final weighted score
         final_score = (
             text_match_score.weighted_score +
@@ -118,10 +107,10 @@ class ScoringEngine:
             tampering_score.weighted_score +
             ocr_confidence_score.weighted_score
         )
-        
+
         # Determine final decision
         final_decision = self._determine_decision(final_score)
-        
+
         verification_result = VerificationResult(
             verification_id=str(uuid.uuid4()),
             timestamp=datetime.now(),
@@ -147,7 +136,7 @@ class ScoringEngine:
             }
         )
 
-        # Recursively sanitize numpy types so FastAPI/Pydantic can serialize safely.
+        # Sanitize numpy types for Pydantic serialization
         def sanitize(value):
             if isinstance(value, np.bool_):
                 return bool(value)
@@ -161,35 +150,30 @@ class ScoringEngine:
 
         sanitized_dict = sanitize(verification_result.model_dump())
         return VerificationResult(**sanitized_dict)
-    
-    def _calculate_text_match(self, ocr_result: OCRResult, 
+
+    def _calculate_text_match(self, ocr_result: OCRResult,
                               user_input: VerificationRequest) -> TextMatchResult:
-        """
-        Calculate text match score between OCR results and user input.
-        """
+        """Calculate text match score between OCR results and user input."""
         score = 0.0
         total_fields = 0
         matched_fields = 0
-        
         details = {}
-        
+
         # Match CNIC number
         if ocr_result.cnic_number and user_input.user_cnic:
             total_fields += 1
-            # Normalize CNIC numbers (remove dashes and spaces)
             ocr_cnic = ocr_result.cnic_number.replace('-', '').replace(' ', '')
             user_cnic = user_input.user_cnic.replace('-', '').replace(' ', '')
-            
+
             if ocr_cnic == user_cnic:
                 matched_fields += 1
                 details['cnic_match'] = True
                 score += 25
             else:
                 details['cnic_match'] = False
-                # Partial match scoring
                 similarity = self._string_similarity(ocr_cnic, user_cnic)
                 score += similarity * 25
-        
+
         # Match name
         if ocr_result.name and user_input.user_name:
             total_fields += 1
@@ -203,14 +187,13 @@ class ScoringEngine:
             details['name_match'] = name_match
             details['name_similarity'] = round(name_similarity, 2)
             score += name_similarity * 25
-        
+
         # Match DOB
         if ocr_result.dob and user_input.user_dob:
             total_fields += 1
-            # Normalize date formats
             ocr_dob = self._normalize_date(ocr_result.dob)
             user_dob = self._normalize_date(user_input.user_dob)
-            
+
             if ocr_dob == user_dob:
                 matched_fields += 1
                 details['dob_match'] = True
@@ -219,13 +202,13 @@ class ScoringEngine:
                 details['dob_match'] = False
                 similarity = self._string_similarity(ocr_dob, user_dob)
                 score += similarity * 25
-        
+
         # Match expiry date (optional)
         if ocr_result.expiry_date and user_input.user_expiry:
             total_fields += 1
             ocr_expiry = self._normalize_date(ocr_result.expiry_date)
             user_expiry = self._normalize_date(user_input.user_expiry)
-            
+
             if ocr_expiry == user_expiry:
                 matched_fields += 1
                 details['expiry_match'] = True
@@ -234,13 +217,13 @@ class ScoringEngine:
                 details['expiry_match'] = False
                 similarity = self._string_similarity(ocr_expiry, user_expiry)
                 score += similarity * 25
-        
+
         # Normalize score to 0-100
         if total_fields > 0:
             normalized_score = (score / (total_fields * 25)) * 100
         else:
             normalized_score = 0
-        
+
         return TextMatchResult(
             match_score=round(normalized_score, 2),
             name_match=details.get('name_match', False),
@@ -249,14 +232,11 @@ class ScoringEngine:
             expiry_match=details.get('expiry_match', False),
             details=details
         )
-    
-    def _create_verification_score(self, name: str, score: float, 
+
+    def _create_verification_score(self, name: str, score: float,
                                    weight: float, passed: bool) -> VerificationScore:
         """Create a VerificationScore object."""
         weighted_score = score * weight
-
-        # `passed` can be numpy.bool_ from model outputs; cast to native bool
-        # so Pydantic can serialize the response.
         passed_bool = bool(passed)
 
         if passed_bool:
@@ -265,7 +245,7 @@ class ScoringEngine:
             status = "warning"
         else:
             status = "fail"
-        
+
         return VerificationScore(
             name=name,
             score=round(score, 2),
@@ -273,7 +253,7 @@ class ScoringEngine:
             weighted_score=round(weighted_score, 2),
             status=status
         )
-    
+
     def _determine_decision(self, final_score: float) -> str:
         """Determine final decision based on score."""
         if final_score >= self.thresholds['genuine']:
@@ -282,61 +262,55 @@ class ScoringEngine:
             return "SUSPICIOUS"
         else:
             return "FAKE"
-    
+
     def _string_similarity(self, s1: str, s2: str) -> float:
         """Calculate similarity between two strings (0-1)."""
         if not s1 or not s2:
             return 0.0
-        
-        # Use Levenshtein-like approach
+
         len1, len2 = len(s1), len(s2)
         if len1 == 0 and len2 == 0:
             return 1.0
-        
-        # Create distance matrix
+
         matrix = [[0] * (len2 + 1) for _ in range(len1 + 1)]
-        
+
         for i in range(len1 + 1):
             matrix[i][0] = i
         for j in range(len2 + 1):
             matrix[0][j] = j
-        
+
         for i in range(1, len1 + 1):
             for j in range(1, len2 + 1):
                 if s1[i-1] == s2[j-1]:
                     matrix[i][j] = matrix[i-1][j-1]
                 else:
                     matrix[i][j] = min(
-                        matrix[i-1][j] + 1,      # deletion
-                        matrix[i][j-1] + 1,      # insertion
-                        matrix[i-1][j-1] + 1     # substitution
+                        matrix[i-1][j] + 1,
+                        matrix[i][j-1] + 1,
+                        matrix[i-1][j-1] + 1
                     )
-        
+
         distance = matrix[len1][len2]
         max_len = max(len1, len2)
-        
+
         return 1.0 - (distance / max_len) if max_len > 0 else 0.0
-    
+
     def _normalize_date(self, date_str: str) -> str:
         """Normalize date string to DD/MM/YYYY format."""
         if not date_str:
             return ""
-        
-        # Remove any existing separators and extract numbers
+
         cleaned = ''.join(c for c in date_str if c.isdigit())
-        
+
         if len(cleaned) == 8:
             return f"{cleaned[:2]}/{cleaned[2:4]}/{cleaned[4:]}"
         elif len(cleaned) == 6:
-            # Assume 2-digit year
             return f"{cleaned[:2]}/{cleaned[2:4]}/19{cleaned[4:]}"
-        
+
         return date_str
-    
+
     def get_detailed_report(self, result: VerificationResult) -> Dict[str, Any]:
-        """
-        Generate a detailed verification report.
-        """
+        """Generate a detailed verification report."""
         return {
             "verification_id": result.verification_id,
             "timestamp": result.timestamp.isoformat(),
@@ -387,29 +361,25 @@ class ScoringEngine:
             },
             "recommendations": self._generate_recommendations(result)
         }
-    
+
     def _generate_recommendations(self, result: VerificationResult) -> list:
         """Generate recommendations based on verification results."""
         recommendations = []
-        
+
         if result.final_decision == "GENUINE":
             recommendations.append("Document appears genuine. Proceed with verification.")
         elif result.final_decision == "SUSPICIOUS":
             recommendations.append("Document shows some suspicious characteristics. Manual review recommended.")
         else:
             recommendations.append("Document appears to be fake or tampered. Reject verification.")
-        
-        # Add specific recommendations based on individual scores
+
         if result.text_match_score.status == "fail":
             recommendations.append("Text data mismatch detected. Verify user-provided information.")
-        
+
         if result.face_match_score.status == "fail":
             recommendations.append("Face mismatch detected. Request new selfie or verify identity.")
-        
+
         if result.tampering_score.status == "fail":
             recommendations.append("Signs of image tampering detected. Request original document.")
-        
-        if result.chip_score.status == "fail":
-            recommendations.append("Chip not detected or invalid. Verify document authenticity.")
-        
+
         return recommendations

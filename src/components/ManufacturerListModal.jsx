@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Badge } from './ui/labelstatus';
 import { useTheme } from '../contexts/ThemeContext';
 import { useState } from 'react';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { EmailModal } from './EmailModal(Optional)';
 import { IndividualProfile } from './IndividualProfile';
 
@@ -280,7 +280,7 @@ export function ManufacturerListModal({ onClose, orderTitle }) {
 
       {/* Sub-Modals */}
       {showChat && (
-        <ChatModal
+        <ChatModule
           onClose={() => {
             setShowChat(false);
             setSelectedManufacturer(null);
@@ -315,3 +315,4 @@ export function ManufacturerListModal({ onClose, orderTitle }) {
 /* Purpose: This file shows a list of manufacturers, allows searching, viewing profiles, and contacting them via chat or email.
 
 Type: It is for web-based application (React frontend). */
+

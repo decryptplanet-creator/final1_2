@@ -23,7 +23,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { ManufacturerListModal } from './ManufacturerListModal';
-import { ChatModal } from './ChatModal';
+import ChatModule from './ChatModule';
 import { ReviewSubmissionModal } from './ReviewSubmissionModal';
 import { AIAnalysisModal } from './AIAnalysisModal';
 import { ReviewWarningModal } from './ReviewWarningModal';
@@ -622,7 +622,7 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
       )}
       
       {showChat && (
-        <ChatModal
+        <ChatModule
           order={order}
           onClose={() => setShowChat(false)}
         />
@@ -718,3 +718,5 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
 /*User ko orders (total / active / completed) list view me dikhata hai aur unki details open karne ka option deta hai.
 
 Yeh web-based React component hai, lekin hybrid apps me bhi use ho sakta hai (dono ke liye). */
+
+

@@ -11,8 +11,19 @@ def decode_base64_image(base64_string: str) -> np.ndarray:
     if "base64," in base64_string:
         base64_string = base64_string.split("base64,")[1]
     
+    # Fix padding if missing
+    base64_string = base64_string.strip()
+    missing_padding = len(base64_string) % 4
+    if missing_padding:
+        base64_string += "=" * (4 - missing_padding)
+
     image_bytes = base64.b64decode(base64_string)
     image = Image.open(BytesIO(image_bytes))
+
+    # Convert RGBA/P mode to RGB to avoid cvtColor channel mismatch
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+
     return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
 
