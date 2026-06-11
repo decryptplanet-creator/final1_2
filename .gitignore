@@ -21,6 +21,9 @@ npm-debug.log*
 vite-dev.log
 backend/backend-run.log
 
+# Runtime data
+chat-messages.json
+
 # Debug images (generated at runtime)
 backend/debug_images/
 

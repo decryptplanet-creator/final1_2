@@ -31,12 +31,12 @@ class Settings(BaseSettings):
     suspicious_score_threshold: float = 45.0 # was 70 — too strict
 
     # Scoring Weights (must sum to 1.0)
-    text_match_weight: float = 0.30    # was 0.20
-    face_match_weight: float = 0.35    # was 0.30
-    layout_weight: float = 0.10        # was 0.15
-    chip_weight: float = 0.00          # was 0.10 — disabled (unreliable)
-    tampering_weight: float = 0.15     # same
-    ocr_confidence_weight: float = 0.10 # same
+    text_match_weight: float = 0.28
+    face_match_weight: float = 0.32
+    layout_weight: float = 0.08
+    chip_weight: float = 0.10
+    tampering_weight: float = 0.14
+    ocr_confidence_weight: float = 0.08
 
     @field_validator("debug", mode="before")
     @classmethod

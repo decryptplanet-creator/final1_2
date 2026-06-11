@@ -2,6 +2,7 @@ import os
 import sys
 import asyncio
 import uvicorn
+from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,15 +22,21 @@ from app.services.scoring_engine import ScoringEngine
 from app.utils.firebase_config import firebase_service
 from app.utils.image_preprocessor import decode_base64_image
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print(f"AI Services & Firebase Started (Available: {firebase_service.is_available()})")
+    yield
+
 app = FastAPI(
     title="CNIC Forensic Verification API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Node.js aur React dono ke liye open rakha hai
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,10 +49,6 @@ chip_detector = ChipDetector()
 tampering_detector = TamperingDetector()
 face_service = FaceService()
 scoring_engine = ScoringEngine()
-
-@app.on_event("startup")
-async def startup_event():
-    print(f"AI Services & Firebase Started (Available: {firebase_service.is_available()})")
 
 @app.get("/health")
 async def health():
