@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Badge } from './ui/labelstatus';
-import { Sparkles, MessageSquare, Bell, LogOut, Search, HardHat, Star, Package, Clock, Wallet, Settings, Mail, Filter, Shield, TrendingUp, MapPin, Factory } from 'lucide-react';
+import { Sparkles, MessageSquare, Bell, LogOut, Search, HardHat, Star, Package, Clock, Wallet, Settings, Mail, Filter, Shield, TrendingUp, MapPin, Factory, Plus } from 'lucide-react';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { SearchModal } from './SearchModal';
 import { ProfileModal } from './ProfileMangement';
@@ -15,7 +15,13 @@ import { NotificationsModal } from './NotificationsModal';
 import { EmailModal } from './EmailModal(Optional)';
 import { SettingsModal } from './SettingsModal';
 import { ViewAllModal } from './ViewAllModal';
+import { PostOrderModal } from './PostOrderModal';
 import { useTheme } from '../contexts/ThemeContext';
+
+// ✅ FIX 1: Port 5001 → 5003
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+function getToken() { return localStorage.getItem('token') || sessionStorage.getItem('token') || ''; }
+const authHeaders = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` });
 
 export function ManufacturerDashboard({ user, onLogout }) {
   const { isDarkMode } = useTheme();
@@ -23,100 +29,106 @@ export function ManufacturerDashboard({ user, onLogout }) {
   const [showSearch, setShowSearch] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [chatTarget, setChatTarget] = useState(null);
   const [showHireLabour, setShowHireLabour] = useState(false);
   const [showAcceptOrder, setShowAcceptOrder] = useState(false);
   const [activeTab, setActiveTab] = useState('available');
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
+  const [showLabourOrderForm, setShowLabourOrderForm] = useState(false);
+  const [labourOrderForm, setLabourOrderForm] = useState({ title: '', description: '', budget: '', deadline: '', quantity: 1 });
+  const [postingLabourOrder, setPostingLabourOrder] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showViewAll, setShowViewAll] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [showPostOrder, setShowPostOrder] = useState(false);
 
-  const [availableOrders] = useState([
-    {
-      id: '1',
-      title: 'Cotton Shirts Manufacturing',
-      description: 'Need 500 cotton shirts, size M-XL, premium quality cotton',
-      quantity: 500,
-      budget: 250000,
-      deadline: '2025-12-20',
-      status: 'pending',
-      escrowStatus: {
-        total: 250000,
-        deposited: 0,
-        released: 0,
-      }
-    },
-    {
-      id: '2',
-      title: 'Leather Bags Production',
-      description: 'Premium leather bags, 200 units, custom design',
-      quantity: 200,
-      budget: 400000,
-      deadline: '2025-12-25',
-      status: 'pending',
-      escrowStatus: {
-        total: 400000,
-        deposited: 0,
-        released: 0,
-      }
-    },
-    {
-      id: '3',
-      title: 'Wooden Furniture Set',
-      description: '50 dining table sets with chairs',
-      quantity: 50,
-      budget: 500000,
-      deadline: '2025-12-30',
-      status: 'pending',
-      escrowStatus: {
-        total: 500000,
-        deposited: 0,
-        released: 0,
-      }
-    }
-  ]);
+  // ── Real escrow status map: { [orderId]: escrow } ──
+  const [escrowMap, setEscrowMap] = useState({});
 
-  const [acceptedOrders, setAcceptedOrders] = useState([
-    {
-      id: 'a1',
-      title: 'Sports Shoes Production',
-      description: '1000 pairs of athletic shoes',
-      quantity: 1000,
-      budget: 800000,
-      deadline: '2025-12-18',
-      status: 'in-progress',
-      clientName: 'Fashion House Ltd',
-      manufacturer: {
-        id: user.id,
-        name: user.name,
-        rating: user.rating,
-      },
-      escrowStatus: {
-        total: 800000,
-        deposited: 800000,
-        released: 240000,
-      }
+  const fetchEscrow = useCallback(async (orderId) => {
+    try {
+      const res = await fetch(`${API}/api/escrow/order/${orderId}`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      setEscrowMap((prev) => ({ ...prev, [orderId]: data }));
+    } catch (_) {}
+  }, []);
+
+  const handleReleaseAdvance = async (order) => {
+    const escrow = escrowMap[order.id];
+    if (!escrow) return alert('Escrow not found for this order');
+    try {
+      const res = await fetch(`${API}/api/escrow/release/advance/${escrow._id}`, {
+        method: 'PUT', headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.message);
+      alert(`✅ 30% advance (PKR ${escrow.advanceAmount}) released to your wallet!`);
+      fetchEscrow(order.id);
+    } catch (err) {
+      alert('Error releasing advance: ' + err.message);
     }
-  ]);
+  };
+
+  const [availableOrders, setAvailableOrders] = useState([]);
+  const [acceptedOrders,  setAcceptedOrders]  = useState([]);
+
+  const normalizeOrder = (o) => ({
+    ...o,
+    id:     o._id,
+    budget: o.budget,
+    escrowStatus: { total: o.budget, deposited: 0, released: 0 },
+    client: o.clientId ? { id: o.clientId._id, name: o.clientId.name } : null,
+  });
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/orders/manufacturer`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const { available, accepted } = await res.json();
+      setAvailableOrders((available || []).map(normalizeOrder));
+      const normalizedAccepted = (accepted || []).map(normalizeOrder);
+      setAcceptedOrders(normalizedAccepted);
+      normalizedAccepted.forEach(o => fetchEscrow(o.id));
+    } catch (_) {}
+  }, []); // eslint-disable-line
+
+  useEffect(() => { fetchOrders(); }, []); // eslint-disable-line
+
+  const handlePostOrder = async (orderData) => {
+    try {
+      const res = await fetch(`${API}/api/orders`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(orderData),
+      });
+      const created = await res.json();
+      if (!res.ok) return alert(created.error || created.message || 'Failed to create order');
+      setShowPostOrder(false);
+      fetchOrders();
+    } catch (_) {
+      setShowPostOrder(false);
+    }
+  };
 
   const [hiredLabour] = useState([
     { id: 'l1', name: 'Ahmed Khan', skill: 'Stitching', rate: 600, rating: 4.8 },
     { id: 'l2', name: 'Ali Raza', skill: 'Cutting', rate: 550, rating: 4.6 },
   ]);
 
-  const handleAcceptOrder = (order) => {
-    const updatedOrder = { 
-      ...order, 
-      status: 'in-progress',
-      manufacturer: {
-        id: user.id,
-        name: user.name,
-        rating: user.rating,
-      }
-    };
-    setAcceptedOrders([...acceptedOrders, updatedOrder]);
+  const handleAcceptOrder = async (order) => {
+    try {
+      const res = await fetch(`${API}/api/orders/accept/${order.id}`, {
+        method: 'PUT', headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.message || 'Failed to accept order');
+      fetchOrders();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
   };
 
   const handleUpdateAcceptedOrder = (orderId, updates) => {
@@ -138,13 +150,32 @@ export function ManufacturerDashboard({ user, onLogout }) {
     return [];
   };
 
+  const submitLabourOrder = async () => {
+    if (!labourOrderForm.title || !labourOrderForm.budget || !labourOrderForm.deadline) return alert('Title, budget, deadline required');
+    setPostingLabourOrder(true);
+    try {
+      const res = await fetch(`${API}/api/orders/labour`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ ...labourOrderForm, budget: Number(labourOrderForm.budget), quantity: Number(labourOrderForm.quantity) || 1 }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      alert('✅ Labour order posted!');
+      setShowLabourOrderForm(false);
+      setLabourOrderForm({ title: '', description: '', budget: '', deadline: '', quantity: 1 });
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      setPostingLabourOrder(false);
+    }
+  };
+
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-[#1a1f2e]' : 'bg-[#F9FAFB]'}`}>
-      {/* Header - Professional style */}
+      {/* Header */}
       <header className={`border-b ${isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="size-8 rounded bg-[#2563EB] flex items-center justify-center">
@@ -159,8 +190,14 @@ export function ManufacturerDashboard({ user, onLogout }) {
               </div>
             </div>
             
-            {/* Right Actions */}
             <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => setShowLabourOrderForm(true)} className="bg-[#2563EB] text-white hover:bg-[#1d4ed8]">
+                + Post Labour Order
+              </Button>
+              <Button size="sm" onClick={() => setShowPostOrder(true)} className="bg-[#2563EB] text-white hover:bg-[#1d4ed8]">
+                <Plus className="size-4 mr-1" />
+                Post New Order
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowEmail(true)} title="Email" className="text-[#2563EB] hover:bg-[#2563EB]/10">
                 <Mail className="size-5" />
               </Button>
@@ -198,7 +235,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
           </div>
         </div>
 
-        {/* Instagram-style Horizontal Profiles */}
+        {/* Horizontal Profiles */}
         <HorizontalProfiles 
           userType="manufacturer"
           onProfileClick={(profile) => {
@@ -217,6 +254,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
             setShowProfile(true);
           }}
           onChatClick={(profile) => {
+            setChatTarget({ id: profile?.id, name: profile?.name, orderId: `chat_${profile?.id || 'general'}` });
             setShowChat(true);
           }}
           onViewAllClick={() => setShowViewAll('labour')}
@@ -297,38 +335,21 @@ export function ManufacturerDashboard({ user, onLogout }) {
           </CardContent>
         </Card>
 
-        {/* Tabs - Alibaba style */}
+        {/* Tabs */}
         <div className={`flex gap-6 mb-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <button
-            onClick={() => setActiveTab('available')}
-            className={`pb-3 px-1 border-b-2 transition-colors ${
-              activeTab === 'available' 
-                ? 'border-[#2563EB] text-[#2563EB]' 
-                : isDarkMode ? 'border-transparent text-gray-400 hover:text-[#2563EB]' : 'border-transparent text-gray-500 hover:text-[#2563EB]'
-            }`}
-          >
-            Available Orders
-          </button>
-          <button
-            onClick={() => setActiveTab('accepted')}
-            className={`pb-3 px-1 border-b-2 transition-colors ${
-              activeTab === 'accepted' 
-                ? 'border-[#2563EB] text-[#2563EB]' 
-                : isDarkMode ? 'border-transparent text-gray-400 hover:text-[#2563EB]' : 'border-transparent text-gray-500 hover:text-[#2563EB]'
-            }`}
-          >
-            Accepted Orders
-          </button>
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={`pb-3 px-1 border-b-2 transition-colors ${
-              activeTab === 'completed' 
-                ? 'border-[#2563EB] text-[#2563EB]' 
-                : isDarkMode ? 'border-transparent text-gray-400 hover:text-[#2563EB]' : 'border-transparent text-gray-500 hover:text-[#2563EB]'
-            }`}
-          >
-            Completed
-          </button>
+          {['available', 'accepted', 'completed'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-3 px-1 border-b-2 transition-colors capitalize ${
+                activeTab === tab
+                  ? 'border-[#2563EB] text-[#2563EB]'
+                  : isDarkMode ? 'border-transparent text-gray-400 hover:text-[#2563EB]' : 'border-transparent text-gray-500 hover:text-[#2563EB]'
+              }`}
+            >
+              {tab === 'available' ? 'Available Orders' : tab === 'accepted' ? 'Accepted Orders' : 'Completed'}
+            </button>
+          ))}
         </div>
 
         {/* Orders List */}
@@ -359,9 +380,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
                     <CardDescription className="text-sm text-gray-400">{order.description}</CardDescription>
                   </div>
                   <div className="text-right ml-4">
-                    <div className="text-[#2563EB]">
-                      PKR {order.budget.toLocaleString()}
-                    </div>
+                    <div className="text-[#2563EB]">PKR {order.budget.toLocaleString()}</div>
                     <div className="text-xs text-gray-500">Budget</div>
                   </div>
                 </div>
@@ -388,7 +407,12 @@ export function ManufacturerDashboard({ user, onLogout }) {
                         <Wallet className="size-4 text-gray-400" />
                         <div>
                           <div className="text-xs text-gray-500">Received</div>
-                          <div className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>PKR {order.escrowStatus.released.toLocaleString()}</div>
+                          <div className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+                            PKR {(escrowMap[order.id]?.advanceReleased
+                              ? escrowMap[order.id]?.advanceAmount
+                              : order.escrowStatus.released
+                            ).toLocaleString()}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -396,10 +420,41 @@ export function ManufacturerDashboard({ user, onLogout }) {
                   {activeTab === 'available' && (
                     <Button onClick={(e) => {
                       e.stopPropagation();
-                      setShowAcceptOrder(true);
                       setSelectedOrder(order);
+                      setShowAcceptOrder(true);
                     }} className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white">
                       Accept Order
+                    </Button>
+                  )}
+                  {activeTab === 'accepted' && escrowMap[order.id]?.status === 'paid' && !escrowMap[order.id]?.advanceReleased && (
+                    <Button
+                      onClick={(e) => { e.stopPropagation(); handleReleaseAdvance(order); }}
+                      className="bg-green-600 hover:bg-green-700 text-white text-sm"
+                    >
+                      Claim 30% Advance
+                    </Button>
+                  )}
+                  {activeTab === 'accepted' && escrowMap[order.id]?.advanceReleased && (
+                    <Badge className="bg-green-500/10 text-green-600 border-green-500 text-xs">
+                      30% Advance Received
+                    </Badge>
+                  )}
+                  {activeTab === 'accepted' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setChatTarget({
+                          id: order.client?.id,
+                          name: order.client?.name || 'Client',
+                          orderId: order.id,
+                        });
+                        setShowChat(true);
+                      }}
+                      className="text-[#2563EB] border-[#2563EB] hover:bg-[#2563EB]/10 text-sm ml-2"
+                    >
+                      💬 Chat
                     </Button>
                   )}
                 </div>
@@ -419,7 +474,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
       </div>
 
       {/* Modals */}
-      {selectedOrder && (
+      {selectedOrder && !showAcceptOrder && (
         <OrderDetailsModal 
           order={selectedOrder}
           userType="manufacturer"
@@ -439,6 +494,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
         <SearchModal 
           onClose={() => setShowSearch(false)}
           userType="manufacturer"
+          currentUserId={user?.id}
         />
       )}
 
@@ -451,6 +507,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
           }}
           onChatClick={() => {
             setShowProfile(false);
+            if (selectedProfileUser) setChatTarget({ id: selectedProfileUser.id, name: selectedProfileUser.name, orderId: `chat_${selectedProfileUser.id}` });
             setShowChat(true);
           }}
         />
@@ -458,7 +515,11 @@ export function ManufacturerDashboard({ user, onLogout }) {
 
       {showChat && (
         <ChatModule 
-          onClose={() => setShowChat(false)}
+          currentUserId={user?.id || 'manufacturer_user'}
+          receiverId={chatTarget?.id || 'client_user'}
+          receiverName={chatTarget?.name || 'Client'}
+          orderId={chatTarget?.orderId || `chat_${user?.id || 'general'}`}
+          onClose={() => { setShowChat(false); setChatTarget(null); }}
         />
       )}
 
@@ -472,21 +533,23 @@ export function ManufacturerDashboard({ user, onLogout }) {
         />
       )}
 
+      {/* ✅ FIX 2: _id pass kiya, client name sahi, onAccept mein fetchOrders */}
       {showAcceptOrder && selectedOrder && (
         <AcceptOrderModal 
           order={{
+            _id: selectedOrder._id || selectedOrder.id,
             title: selectedOrder.title,
-            client: 'ABC Company',
+            client: selectedOrder.client?.name || 'ABC Company',
             quantity: selectedOrder.quantity,
             deadline: selectedOrder.deadline,
-            budget: selectedOrder.budget
+            budget: selectedOrder.budget,
           }}
           onClose={() => {
             setShowAcceptOrder(false);
             setSelectedOrder(null);
           }}
           onAccept={() => {
-            console.log('Order accepted');
+            fetchOrders();
             setShowAcceptOrder(false);
             setSelectedOrder(null);
           }}
@@ -494,34 +557,63 @@ export function ManufacturerDashboard({ user, onLogout }) {
       )}
 
       {showNotifications && (
-        <NotificationsModal 
-          onClose={() => setShowNotifications(false)}
-        />
+        <NotificationsModal onClose={() => setShowNotifications(false)} />
       )}
 
       {showEmail && (
-        <EmailModal 
-          onClose={() => setShowEmail(false)}
-        />
+        <EmailModal onClose={() => setShowEmail(false)} />
       )}
 
       {showSettings && (
-        <SettingsModal 
-          onClose={() => setShowSettings(false)}
-          userType="manufacturer"
-        />
+        <SettingsModal onClose={() => setShowSettings(false)} userType="manufacturer" />
       )}
 
       {showViewAll && (
-        <ViewAllModal 
-          type={showViewAll}
-          onClose={() => setShowViewAll(null)}
+        <ViewAllModal type={showViewAll} onClose={() => setShowViewAll(null)} currentUserId={user?.id} />
+      )}
+
+      {/* Post Labour Order Modal */}
+      {showLabourOrderForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-md rounded-xl p-6 space-y-4 ${isDarkMode ? 'bg-[#2A3642]' : 'bg-white'}`}>
+            <div className="flex items-center justify-between">
+              <h3 className={`font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>Post Labour Order</h3>
+              <button onClick={() => setShowLabourOrderForm(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            {[
+              { label: 'Job Title *', key: 'title', type: 'text', placeholder: 'e.g. Fabric Cutting - 500 pcs' },
+              { label: 'Description', key: 'description', type: 'text', placeholder: 'Job details...' },
+              { label: 'Budget (PKR) *', key: 'budget', type: 'number', placeholder: '0' },
+              { label: 'Deadline *', key: 'deadline', type: 'date', placeholder: '' },
+              { label: 'Quantity', key: 'quantity', type: 'number', placeholder: '1' },
+            ].map(({ label, key, type, placeholder }) => (
+              <div key={key}>
+                <label className={`text-sm mb-1 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{label}</label>
+                <Input
+                  type={type}
+                  placeholder={placeholder}
+                  value={labourOrderForm[key]}
+                  onChange={e => setLabourOrderForm(p => ({ ...p, [key]: e.target.value }))}
+                  className={isDarkMode ? 'bg-[#1F2933] border-gray-600 text-white' : ''}
+                />
+              </div>
+            ))}
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowLabourOrderForm(false)}>Cancel</Button>
+              <Button className="flex-1 bg-[#2563EB] text-white" onClick={submitLabourOrder} disabled={postingLabourOrder}>
+                {postingLabourOrder ? 'Posting...' : 'Post Order'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPostOrder && (
+        <PostOrderModal
+          onClose={() => setShowPostOrder(false)}
+          onSubmit={handlePostOrder}
         />
       )}
     </div>
   );
 }
-/* This file is the Manufacturer Dashboard component for managing orders, labour, and user interactions.
-It is designed for web-based React applications, not a native mobile app. */
-
-

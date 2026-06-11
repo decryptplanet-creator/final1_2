@@ -8,7 +8,7 @@ import { X, Search, Factory, HardHat, Star, MapPin, Award, MessageSquare } from 
 import ChatModule from './ChatModule';
 import { IndividualProfile } from './IndividualProfile';
 
-export function SearchModal({ onClose, userType }) {
+export function SearchModal({ onClose, userType, currentUserId }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [showChat, setShowChat] = useState(false);
@@ -436,11 +436,11 @@ export function SearchModal({ onClose, userType }) {
       {/* Chat Modal */}
       {showChat && selectedProfile && (
         <ChatModule 
-          onClose={() => {
-            setShowChat(false);
-            setSelectedProfile(null);
-          }} 
-          recipientName={selectedProfile.name}
+          currentUserId={currentUserId || 'current_user'}
+          receiverId={selectedProfile.id || selectedProfile._id || 'receiver_user'}
+          receiverName={selectedProfile.name}
+          orderId={`chat_${selectedProfile.id || selectedProfile._id}`}
+          onClose={() => { setShowChat(false); setSelectedProfile(null); }}
         />
       )}
 

@@ -1,6 +1,6 @@
 import { NotificationCenter } from './NotificationCenter';
 import { ToastContainer, useToast } from './Alerts&Notification';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -40,6 +40,7 @@ import { HireConfirmationModal } from './HireConfirmationModal';
 import { EditProfileModal } from './EditProfileModal';
 import { EscrowDemoPage } from './EscrowDemoPage';
 import EscrowPage from './escrow/EscrowPage';
+import { ReviewModal } from './ReviewModal';
 import { IndividualProfile } from './IndividualProfile';
 import { FilterModal } from './AdvancedFilterModal';
 import { PaymentDetailsModal } from './PaymentDetailsModal';
@@ -77,88 +78,134 @@ export function ClientDashboard({ user, onLogout }) {
   const [showDeactivate, setShowDeactivate] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showOrderList, setShowOrderList] = useState(null);
+  const [showReview, setShowReview] = useState(null);   // { manufacturerId, manufacturerName }
+  const [releasingId, setReleasingId] = useState(null); // escrow._id being released
 
-  const [orders, setOrders] = useState([
-    {
-      id: '1',
-      title: 'Cotton Shirts Manufacturing',
-      description: 'Need 500 cotton shirts, size M-XL',
-      quantity: 500,
-      budget: 250000,
-      deadline: '2025-12-20',
-      status: 'in-progress',
-      manufacturer: { id: 'm1', name: 'ABC Textiles', rating: 4.5 },
-      escrowStatus: { total: 250000, deposited: 250000, released: 75000 }
-    },
-    {
-      id: '2',
-      title: 'Leather Bags Production',
-      description: 'Premium leather bags, 200 units',
-      quantity: 200,
-      budget: 400000,
-      deadline: '2025-12-25',
-      status: 'pending',
-      escrowStatus: { total: 400000, deposited: 0, released: 0 }
-    },
-    {
-      id: '3',
-      title: 'Sports Equipment Manufacturing',
-      description: 'High-quality football and cricket equipment - 300 units',
-      quantity: 300,
-      budget: 350000,
-      deadline: '2025-12-30',
-      status: 'in-progress',
-      manufacturer: { id: 'm2', name: 'Sialkot Sports Ltd', rating: 4.8 },
-      escrowStatus: { total: 350000, deposited: 350000, released: 105000 }
+  // ── API config ──────────────────────────────────────────────────────────────
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+  const getAuthHeaders = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` });
+
+  // ── Real escrow state: { [orderId]: escrow } ────────────────────────────────
+  const [escrowMap, setEscrowMap] = useState({});
+
+  const fetchEscrow = useCallback(async (orderId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/escrow/order/${orderId}`, { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      setEscrowMap((prev) => ({ ...prev, [orderId]: data }));
+    } catch (_) {}
+  }, []); // eslint-disable-line
+
+  const handleClientApproval = async (order) => {
+    const escrow = escrowMap[order.id];
+    if (!escrow) return alert('Escrow not found');
+    try {
+      const res = await fetch(`${API_BASE}/api/escrow/client-approval/${escrow._id}`, {
+        method: 'PUT', headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.message);
+      alert('✅ Delivery approved! 70% payment will now be released to manufacturer.');
+      fetchEscrow(order.id);
+    } catch (err) {
+      alert('Error: ' + err.message);
     }
-  ]);
+  };
 
-  const handlePostOrder = (orderData) => {
-    const newOrder = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: orderData.title || '',
-      productName: orderData.title || orderData.productName || '',
-      description: orderData.description || '',
-      quantity: orderData.quantity || 0,
-      budget: orderData.budget || 0,
-      totalAmount: orderData.budget || 0,
-      advancePercentage: 100,
-      advanceAmount: orderData.budget || 0,
-      deadline: orderData.deadline || '',
-      status: 'pending',
-      escrowStatus: { total: orderData.budget || 0, deposited: 0, released: 0 }
-    };
-    setOrders([newOrder, ...orders]);
-    setSelectedOrder(newOrder);
-    setShowPostOrder(false);
-    setShowEscrowPage(true);
+  const handleRelease70 = async (order) => {
+    const escrow = escrowMap[order.id];
+    if (!escrow) return alert('Escrow not found');
+    setReleasingId(escrow._id);
+    try {
+      const res = await fetch(`${API_BASE}/api/escrow/release/remaining/${escrow._id}`, {
+        method: 'PUT', headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.message);
+      alert(`✅ 70% (PKR ${escrow.remainingAmount}) manufacturer ko release ho gaya!`);
+      fetchEscrow(order.id);
+      // Open review modal after release
+      if (order.manufacturer?.id) {
+        setShowReview({ manufacturerId: order.manufacturer.id, manufacturerName: order.manufacturer.name });
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      setReleasingId(null);
+    }
+  };
+
+  const [orders, setOrders] = useState([]);
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/client`, { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      // normalize _id → id for component compatibility
+      const normalized = data.map(o => ({
+        ...o,
+        id:           o._id,
+        budget:       o.budget,
+        totalAmount:  o.budget,
+        advanceAmount: Math.round(o.budget * 0.3),
+        manufacturer: o.manufacturerId ? {
+          id:   o.manufacturerId._id,
+          name: o.manufacturerId.companyName || o.manufacturerId.name,
+        } : null,
+        escrowStatus: { total: o.budget, deposited: 0, released: 0 },
+      }));
+      setOrders(normalized);
+      normalized.forEach(o => fetchEscrow(o.id));
+    } catch (_) {}
+  }, []); // eslint-disable-line
+
+  const handlePostOrder = async (orderData) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/orders`, {
+        method:  'POST',
+        headers: getAuthHeaders(),
+        body:    JSON.stringify({
+          title:          orderData.title,
+          description:    orderData.description,
+          category:       orderData.category,
+          quantity:       orderData.quantity,
+          budget:         orderData.budget,
+          deadline:       orderData.deadline,
+          specifications: orderData.specifications,
+        }),
+      });
+      const created = await res.json();
+      if (!res.ok) return alert(created.error || created.message || created.msg || 'Failed to create order');
+      const newOrder = {
+        ...created,
+        id:            created._id,
+        clientId:      created.clientId || user?.id || user?._id,
+        totalAmount:   created.budget,
+        advanceAmount: Math.round(created.budget * 0.3),
+        manufacturer:  null,
+        escrowStatus:  { total: created.budget, deposited: 0, released: 0 },
+      };
+      setOrders(prev => [newOrder, ...prev]);
+      setSelectedOrder(newOrder);
+      setShowPostOrder(false);
+      setShowEscrowPage(true);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
   };
 
   const handleUpdateOrder = (orderId, updates) => {
     setOrders(orders.map(order => order.id === orderId ? { ...order, ...updates } : order));
   };
 
-  const handleEscrowPaymentSuccess = (txn) => {
-    setOrders((prev) => {
-      const next = prev.map(order => {
-        if (order.id === txn.orderId) {
-          const deposited = txn.amount || order.escrowStatus?.deposited || 0;
-          return {
-            ...order,
-            escrowStatus: { ...order.escrowStatus, deposited },
-            payments: [...(order.payments || []), txn],
-            status: order.status === 'pending' ? 'in-progress' : order.status
-          };
-        }
-        return order;
-      });
-      const updated = next.find(o => o.id === txn.orderId);
-      if (updated) {
-        setSelectedOrder(updated);
-        setShowEscrowPage(false);
-      }
-      return next;
-    });
+  // Fetch real orders on mount
+  useEffect(() => { fetchOrders(); }, []); // eslint-disable-line
+
+  const handleEscrowPaymentSuccess = () => {
+    setShowEscrowPage(false);
+    fetchOrders();
   };
 
   const getCurrentUserId = () => user.id || user._id || currentUser?.id || currentUser?._id || 'client_user';
@@ -486,7 +533,12 @@ export function ClientDashboard({ user, onLogout }) {
                     <Wallet className="size-4 text-gray-400" />
                     <div>
                       <div className="text-xs text-gray-500">Escrow</div>
-                      <div className="text-[#1F2933]">PKR {order.escrowStatus.deposited.toLocaleString()}</div>
+                      <div className="text-[#1F2933]">
+                        PKR {(escrowMap[order.id]?.totalAmount ?? order.escrowStatus.deposited).toLocaleString()}
+                        {escrowMap[order.id]?.status && (
+                          <span className="ml-1 text-xs text-gray-400">({escrowMap[order.id].status})</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -499,6 +551,43 @@ export function ClientDashboard({ user, onLogout }) {
                     <FileText className="size-4 mr-2" />
                     View Details
                   </Button>
+                  {/* Pay via Stripe — in-progress order with unpaid escrow */}
+                  {order.status === 'in-progress' && (!escrowMap[order.id] || ['pending', 'awaiting_payment'].includes(escrowMap[order.id]?.status)) && (
+                    <Button
+                      className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8] text-white"
+                      onClick={() => { setSelectedOrder(order); setShowEscrowPage(true); }}
+                    >
+                      💳 Pay via Stripe
+                    </Button>
+                  )}
+                  {/* Approve Delivery — shown when advance released and not yet approved */}
+                  {escrowMap[order.id]?.advanceReleased && !escrowMap[order.id]?.clientApproved && (
+                    <Button
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => handleClientApproval(order)}
+                    >
+                      ✅ Approve Delivery
+                    </Button>
+                  )}
+                  {escrowMap[order.id]?.clientApproved && !escrowMap[order.id]?.remainingReleased && (
+                    <Button
+                      className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8] text-white"
+                      disabled={releasingId === escrowMap[order.id]?._id}
+                      onClick={() => handleRelease70(order)}
+                    >
+                      {releasingId === escrowMap[order.id]?._id ? '⏳ Releasing...' : '💰 Release 70%'}
+                    </Button>
+                  )}
+                  {escrowMap[order.id]?.remainingReleased && (
+                    <Badge className="bg-green-500/10 text-green-600 border-green-500 px-3 py-1 text-xs">
+                      ✅ Order Complete
+                    </Badge>
+                  )}
+                  {escrowMap[order.id]?.clientApproved && (
+                    <Badge className="bg-green-500/10 text-green-600 border-green-500 px-3 py-1 text-xs">
+                      Delivery Approved
+                    </Badge>
+                  )}
                   {order.manufacturer && (
                     <Button
                       variant="outline"
@@ -507,6 +596,15 @@ export function ClientDashboard({ user, onLogout }) {
                     >
                       <MessageSquare className="size-4 mr-2" />
                       Chat
+                    </Button>
+                  )}
+                  {/* Review button — shown after order complete */}
+                  {escrowMap[order.id]?.remainingReleased && order.manufacturer?.id && (
+                    <Button
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                      onClick={() => setShowReview({ manufacturerId: order.manufacturer.id, manufacturerName: order.manufacturer.name })}
+                    >
+                      ⭐ Leave Review
                     </Button>
                   )}
                 </div>
@@ -528,7 +626,7 @@ export function ClientDashboard({ user, onLogout }) {
           }}
         />
       )}
-      {showSearch && <SearchModal onClose={() => setShowSearch(false)} userType="client" />}
+      {showSearch && <SearchModal onClose={() => setShowSearch(false)} userType="client" currentUserId={user?.id} />}
       {showProfile && (
         <ProfileModal 
           user={selectedProfileUser || user} 
@@ -561,7 +659,15 @@ export function ClientDashboard({ user, onLogout }) {
           onClose={() => setShowViewAll(null)} 
           activeFilter={activeFilter} 
           onFilterChange={setActiveFilter} 
-          onProfileClick={(i) => { setSelectedProfileUser(i); setShowProfile(true); }} 
+          onProfileClick={(i) => { setSelectedProfileUser(i); setShowProfile(true); }}
+          currentUserId={user?.id}
+        />
+      )}
+      {showReview && (
+        <ReviewModal
+          revieweeId={showReview.manufacturerId}
+          revieweeName={showReview.manufacturerName}
+          onClose={() => setShowReview(null)}
         />
       )}
     </div>

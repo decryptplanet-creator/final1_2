@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
+import { Textarea } from './ui/textarea input';
 import { Checkbox } from './ui/checkbox';
 import { ArrowLeft, Upload, Check, FileText, Image as ImageIcon, Video, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { Badge } from './ui/badge';

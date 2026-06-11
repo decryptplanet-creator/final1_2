@@ -1,16 +1,28 @@
 import { useState, useRef } from 'react';
-import { User } from '../App';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
+import { Textarea } from './ui/textarea input';
 import { Badge } from './ui/badge';
 import { 
   ArrowLeft, Upload, Check, Eye, EyeOff, MapPin, Lock, 
   CreditCard, Camera, Loader2, CheckCircle, Video,
-  Briefcase, Factory, HardHat, X, Sparkles, FileText, Barcode
+  Briefcase, Factory, HardHat, X, Sparkles, FileText, Barcode, ShieldCheck
 } from 'lucide-react';
+
+const POLICIES = [
+  { title: '1. Fraud Policy (PPC Sections 415–420)', text: 'Any user involved in fraud, deception, or dishonest activities shall be held accountable under applicable Pakistani laws.' },
+  { title: '2. Payment Policy (PPC Sections 23, 24, 25)', text: 'Clients and manufacturers must make agreed payments on time. Intentional non-payment may result in legal action.' },
+  { title: '3. False Information Policy (PPC Sections 24, 25)', text: 'Users must provide accurate personal, business, and professional information on the platform.' },
+  { title: '4. Forgery Policy (PPC Sections 463–471)', text: 'Submitting fake documents, contracts, certificates, or identification records is strictly prohibited.' },
+  { title: '5. Impersonation Policy (PPC Sections 416, 419)', text: "No user may create an account or conduct activities using another person's or company's identity." },
+  { title: '6. Abuse and Harassment Policy (PPC Sections 504, 509)', text: 'Abusive language, harassment, offensive behavior, or misconduct toward any user is prohibited.' },
+  { title: '7. Criminal Intimidation Policy (PPC Sections 503, 506)', text: 'Threats, coercion, blackmail, or intimidation of any user may result in legal action.' },
+  { title: '8. Theft and Misuse Policy (PPC Sections 378, 379)', text: "Unauthorized use, theft, or misuse of another user's property, products, materials, or information is prohibited." },
+  { title: '9. Account Suspension Policy', text: 'Users who repeatedly violate platform policies after warnings may have their accounts suspended or permanently terminated.' },
+  { title: '10. Legal Compliance Policy', text: 'All users agree to comply with the laws of Pakistan, and serious violations may be reported to the relevant authorities for legal proceedings.' },
+];
 import { SelfieCaptureModal } from './SelfieCaptureModal';
 import { LocationModal } from './LocationModal';
 import { useTheme } from '../contexts/ThemeContext';
@@ -23,6 +35,7 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSelfieCapture, setShowSelfieCapture] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [policiesAccepted, setPoliciesAccepted] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -159,7 +172,10 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
       alert('Please enter your address in step 1, or use Verify GPS on step 1.');
       return;
     }
-
+    if (!policiesAccepted) {
+      alert('Please accept the Platform Policies to continue');
+      return;
+    }
     // Optional manufacturer/labour fields are not required to match the enabled state of this button.
 
     setStep('verifying');
@@ -631,8 +647,7 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
 
             {userType === 'labour' && (
               <div>
-                <Label>Upload Skills Video (Optional)</Label>
-                <p className="text-xs text-gray-500 mb-2">Show your skills in action (max 30 seconds)</p>
+                <Label>Upload Skills Video</Label>
                 <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   <input
                     ref={videoInputRef}
@@ -677,7 +692,7 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
 
             {userType === 'manufacturer' && (
               <div>
-                <Label>Upload Business Documents (Optional)</Label>
+                <Label>Upload Business Documents</Label>
                 <p className="text-xs text-gray-500 mb-2">Upload relevant business documents (max 5MB)</p>
                 <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   <input
@@ -723,8 +738,7 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
 
             {userType === 'manufacturer' && (
               <div>
-                <Label>Affidavit Barcode/Hexadecimal Code (Optional)</Label>
-                <p className="text-xs text-gray-500 mb-2">Enter the barcode or hexadecimal code from your affidavit</p>
+                <Label>Affidavit Barcode/Hexadecimal Code</Label>
                 <div className="mt-2">
                   <Input
                     id="affidavitCode"
@@ -737,10 +751,39 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
               </div>
             )}
 
+            {/* Platform Policies */}
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="size-4 text-[#2563EB]" />
+                Platform Policies
+              </Label>
+              <div className="border border-gray-300 rounded-lg overflow-hidden">
+                <div className="h-52 overflow-y-scroll p-4 bg-gray-50 space-y-3">
+                  {POLICIES.map((p, i) => (
+                    <div key={i}>
+                      <p className="text-sm font-semibold text-[#1F2933]">{p.title}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{p.text}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-4 py-3 border-t border-gray-300 bg-white">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={policiesAccepted}
+                      onChange={(e) => setPoliciesAccepted(e.target.checked)}
+                      className="size-4 accent-[#2563EB] cursor-pointer"
+                    />
+                    <span className="text-sm font-medium text-[#1F2933]">I Agree to Policies</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
             <Button
               type="button"
               onClick={handleVerificationSubmit}
-              disabled={!cnicFrontUploaded || !cnicBackUploaded || !selfieCaptured || !isVerificationLocationReady}
+              disabled={!cnicFrontUploaded || !cnicBackUploaded || !selfieCaptured || !isVerificationLocationReady || !policiesAccepted}
               className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] mt-6 disabled:opacity-50"
             >
               Submit for Verification

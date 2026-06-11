@@ -129,7 +129,7 @@ export function PostOrderModal({ onClose, onSubmit }) {
               <Textarea 
                 id="specifications"
                 value={formData.specifications}
-                onChange={(e) => handleInputChange('specification', e.target.value)}
+                onChange={(e) => handleInputChange('specifications', e.target.value)}
                 placeholder="Any specific requirements or standards..."
                 rows={3}
                 className="bg-white border-gray-300 text-[#1F2933]"

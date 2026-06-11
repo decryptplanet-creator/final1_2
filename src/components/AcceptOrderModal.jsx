@@ -3,9 +3,11 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/labelstatus';
 import { X, Calendar, DollarSign, Package, CheckCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token') || '';
 
 export function AcceptOrderModal({ order, onClose, onAccept }) {
   const { isDarkMode } = useTheme();
@@ -13,6 +15,7 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
   const [quotedPrice, setQuotedPrice] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!order) return null;
 
@@ -21,20 +24,52 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
     client: order.client || 'ABC Company',
     quantity: order.quantity,
     deadline: order.deadline,
-    budget: `PKR ${order.budget.toLocaleString()}`,
+    budget: `PKR ${order.budget?.toLocaleString()}`,
   };
 
-  const handleSubmit = () => {
-    // Handle order acceptance
-    alert(`Order accepted! Quote: PKR ${quotedPrice}, Delivery: ${deliveryDate}`);
-    if (onAccept) onAccept();
-    onClose();
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+
+    // ✅ FIX: orderId sahi se nikalo
+    const orderId = order._id || order.id;
+    console.log('Order:', order);
+    console.log('OrderId:', orderId);
+
+    if (!orderId) {
+      alert('Order ID nahi mila!');
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      // ✅ FIX: Sahi URL — /api/orders/accept/:id
+      const res = await fetch(`${API}/api/orders/accept/${orderId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          quotedPrice: parseFloat(quotedPrice),
+          deliveryDate,
+          message,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || 'Order accept nahi ho saka');
+      if (onAccept) onAccept(data);
+      onClose();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className={`fixed inset-0 flex items-center justify-center z-50 p-4 ${isDarkMode ? 'bg-black/90' : 'bg-black/50'}`}>
-      <Card className={`max-w-2xl w-full ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-        <CardHeader className="border-b border-gray-800">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/70">
+      <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto bg-gray-900 border-gray-800">
+        <CardHeader className="border-b border-gray-800 sticky top-0 bg-gray-900 z-10">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-white">Accept Order</CardTitle>
@@ -49,7 +84,6 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
         <CardContent className="p-6">
           {step === 1 ? (
             <div className="space-y-6">
-              {/* Order Summary */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                 <h3 className="text-white mb-3">Order Details</h3>
                 <div className="space-y-2 text-sm">
@@ -76,9 +110,8 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
                 </div>
               </div>
 
-              {/* Your Quotation */}
               <div>
-                <label className="text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                <label className="text-sm text-gray-300 mb-2 flex items-center gap-2">
                   <DollarSign className="size-4" />
                   Your Quoted Price (PKR)
                 </label>
@@ -89,14 +122,10 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
                   onChange={(e) => setQuotedPrice(e.target.value)}
                   className="bg-gray-800 border-gray-700 text-white"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  30% ({quotedPrice ? `PKR ${(parseFloat(quotedPrice) * 0.3).toLocaleString()}` : 'PKR 0'}) will be paid upfront via escrow
-                </p>
               </div>
 
-              {/* Delivery Date */}
               <div>
-                <label className="text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                <label className="text-sm text-gray-300 mb-2 flex items-center gap-2">
                   <Calendar className="size-4" />
                   Proposed Delivery Date
                 </label>
@@ -108,9 +137,8 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
                 />
               </div>
 
-              {/* Message to Client */}
               <div>
-                <label className="text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                <label className="text-sm text-gray-300 mb-2 flex items-center gap-2">
                   <Package className="size-4" />
                   Message to Client (Optional)
                 </label>
@@ -122,7 +150,6 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
                 />
               </div>
 
-              {/* Action Buttons */}
               <div className="flex gap-3">
                 <Button
                   variant="outline"
@@ -142,7 +169,6 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Review Summary */}
               <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="size-12 rounded-full bg-[#2563EB]/20 flex items-center justify-center">
@@ -160,14 +186,6 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
                     <span className="text-white">PKR {parseFloat(quotedPrice).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between border-b border-gray-700 pb-2">
-                    <span className="text-gray-400">Upfront Payment (30%):</span>
-                    <span className="text-[#2563EB]">PKR {(parseFloat(quotedPrice) * 0.3).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-700 pb-2">
-                    <span className="text-gray-400">After Completion (70%):</span>
-                    <span className="text-white">PKR {(parseFloat(quotedPrice) * 0.7).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-gray-700 pb-2">
                     <span className="text-gray-400">Delivery Date:</span>
                     <span className="text-white">{new Date(deliveryDate).toLocaleDateString()}</span>
                   </div>
@@ -180,21 +198,6 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
                 </div>
               </div>
 
-              {/* Payment Terms Info */}
-              <div className="bg-[#138f8a]/10 border border-[#138f8a]/30 rounded-lg p-4">
-                <h4 className="text-[#138f8a] mb-2 flex items-center gap-2">
-                  <Package className="size-4" />
-                  Escrow Payment Terms
-                </h4>
-                <ul className="text-sm text-gray-400 space-y-1 list-disc pl-5">
-                  <li>30% payment will be released to you immediately upon client approval</li>
-                  <li>Remaining 70% will be held in escrow until order completion</li>
-                  <li>Client must confirm delivery before final payment release</li>
-                  <li>Dispute resolution available if needed</li>
-                </ul>
-              </div>
-
-              {/* Final Actions */}
               <div className="flex gap-3">
                 <Button
                   variant="outline"
@@ -205,9 +208,10 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
                 </Button>
                 <Button
                   onClick={handleSubmit}
+                  disabled={isSubmitting}
                   className="flex-1 bg-[#138f8a] hover:bg-[#0d7973]"
                 >
-                  Confirm & Accept Order
+                  {isSubmitting ? 'Submitting...' : 'Confirm & Accept Order'}
                 </Button>
               </div>
             </div>
@@ -217,7 +221,3 @@ export function AcceptOrderModal({ order, onClose, onAccept }) {
     </div>
   );
 }
-
-
-/* This file is the Accept Order Modal component for submitting quotations and delivery details for orders.
-It is intended for web-based React applications, not a native mobile app.*/

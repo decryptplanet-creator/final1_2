@@ -173,32 +173,23 @@ export function LandingPage({ onUserTypeSelect, onLogin, onAiDemo }) {
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-8">
               <button 
-                onClick={() => {
-                  setActiveTab(activeTab === 'client' ? null : 'client');
-                  setSearchResults(null);
-                }}
+                onClick={() => handleRoleSelect('client')}
                 className={`${isDarkMode ? 'text-[#F9FAFB] hover:text-[#2563EB]' : 'text-[#1F2933] hover:text-[#2563EB]'}`}
               >
                 Clients
               </button>
               <button 
-                onClick={() => {
-                  setActiveTab(activeTab === 'manufacturer' ? null : 'manufacturer');
-                  setSearchResults(null);
-                }}
+               onClick={() => handleRoleSelect('manufacturer')}
                 className={`${isDarkMode ? 'text-[#F9FAFB] hover:text-[#2563EB]' : 'text-[#1F2933] hover:text-[#2563EB]'}`}
               >
                 Manufacturers
               </button>
               <button 
-                onClick={() => {
-                  setActiveTab(activeTab === 'labour' ? null : 'labour');
-                  setSearchResults(null);
-                }}
-                className={`${isDarkMode ? 'text-[#F9FAFB] hover:text-[#2563EB]' : 'text-[#1F2933] hover:text-[#2563EB]'}`}
-              >
-                Labour
-              </button>
+  onClick={() => handleRoleSelect('labour')}
+  className={`${isDarkMode ? 'text-[#F9FAFB] hover:text-[#2563EB]' : 'text-[#1F2933] hover:text-[#2563EB]'}`}
+>
+  Labour
+</button>
               <button 
                 onClick={() => setShowHelp(true)}
                 className={`${isDarkMode ? 'text-[#F9FAFB] hover:text-[#2563EB]' : 'text-[#1F2933] hover:text-[#2563EB]'}`}
@@ -651,7 +642,7 @@ onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 <X className={`size-6 ${isDarkMode ? 'text-gray-400 hover:text-[#F9FAFB]' : 'text-gray-500 hover:text-[#1F2933]'}`} />
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card 
                 onClick={() => handleRoleSelect('client')} 
                 className={`cursor-pointer transition-all hover:shadow-lg ${isDarkMode ? 'bg-[#2A3642] border-gray-700 hover:border-[#2563EB]' : 'bg-white border-gray-200 hover:border-[#2563EB]'}`}
@@ -697,20 +688,7 @@ onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 </CardHeader>
               </Card>
 
-              <Card 
-                onClick={() => handleRoleSelect('admin')} 
-                className={`cursor-pointer transition-all hover:shadow-lg ${isDarkMode ? 'bg-[#2A3642] border-gray-700 hover:border-[#2563EB]' : 'bg-white border-gray-200 hover:border-[#2563EB]'}`}
-              >
-                <CardHeader>
-                  <div className="size-16 rounded-full bg-purple-600/10 flex items-center justify-center mx-auto mb-4">
-                    <Shield className="size-8 text-purple-600" />
-                  </div>
-                  <CardTitle className={`text-center ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>Admin</CardTitle>
-                  <CardDescription className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Platform management and system control
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+        
             </div>
           </div>
         </div>

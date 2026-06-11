@@ -1,178 +1,128 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { CreditCard, Building2, Smartphone, Info } from 'lucide-react';
-import { PaymentSuccessModal } from './PaymentSuccessModal';
+import { Info, Loader2, ShieldCheck } from 'lucide-react';
 import { EscrowStatusBadge } from './EscrowStatusBadge';
 import { useTheme } from '../../contexts/ThemeContext';
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+const authHeaders = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` });
+
 export function EscrowPage({ orderData: initialOrder, onClose, onPaymentSuccess }) {
   const { isDarkMode } = useTheme();
-  const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [transaction, setTransaction] = useState(null);
-  const [payerName, setPayerName] = useState('Demo Client');
-  const [payerPhone, setPayerPhone] = useState('+92 300 0000000');
-  const [paymentRef, setPaymentRef] = useState(`JZ-${Date.now().toString().slice(-6)}`);
-  const [payerNote, setPayerNote] = useState('Paid via JazzCash mobile wallet');
-  const [receiptFile, setReceiptFile] = useState(null);
+  const [error, setError] = useState('');
 
   const orderData = initialOrder || {
-    id: 'demo-order-001',
-    productName: 'Demo Product',
-    quantity: 1,
-    deadline: new Date().toISOString(),
-    totalAmount: 654,
-    advancePercentage: 100,
-    advanceAmount: 654,
+    id: 'demo-order-001', title: 'Demo Product',
+    totalAmount: 1000, clientId: null, manufacturerId: null,
   };
 
-  const paymentMethods = [
-    { id: 'card', label: 'Debit / Credit Card', detail: 'Visa or Mastercard', icon: CreditCard },
-    { id: 'bank', label: 'Bank Transfer', detail: 'Instant online banking', icon: Building2 },
-    { id: 'wallet', label: 'Mobile Wallet', detail: 'JazzCash or Easypaisa', icon: Smartphone }
-  ];
+  const advance   = Math.round((orderData.totalAmount || 0) * 0.3);
+  const remaining = Math.round((orderData.totalAmount || 0) * 0.7);
 
-  const selectedMethod = paymentMethods.find(m => m.id === paymentMethod);
+  const handlePay = async () => {
+    // Debug — console mein dekho kya aa raha hai
+    console.log('orderData:', orderData);
+    console.log('orderId:', orderData.id || orderData._id);
 
-  const handlePay = () => {
     setIsProcessing(true);
-    const txn = {
-      id: `TXN-${Date.now().toString().slice(-8)}`,
-      orderId: orderData.id,
-      method: selectedMethod.label,
-      amount: orderData.advanceAmount,
-      date: new Date().toLocaleString(),
-      payer: {
-        name: payerName,
-        phone: payerPhone,
-        reference: paymentRef,
-        note: payerNote,
-        channel: 'JazzCash'
-      }
-    };
+    setError('');
 
-    setTimeout(() => {
+    const orderId = orderData.id || orderData._id;
+
+    if (!orderId) {
+      setError('Order ID nahi mila — please page reload karo');
       setIsProcessing(false);
-      // include receipt filename if provided
-      if (receiptFile) txn.receiptFileName = receiptFile.name;
-      setTransaction(txn);
-      setShowSuccess(true);
-      // notify parent so orders can be updated (escrow deposited)
-      if (onPaymentSuccess) onPaymentSuccess(txn);
-    }, 1200);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/api/escrow/stripe/initiate/${orderId}`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          amount: orderData.totalAmount,
+          title: orderData.title,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Payment shuru nahi ho saka');
+      window.location.href = data.checkoutUrl;
+    } catch (err) {
+      setError(err.message);
+      setIsProcessing(false);
+    }
   };
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-[#0F1724]' : 'bg-[#F8FAFF]'} py-8`}> 
-      <div className="max-w-5xl mx-auto px-4">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-[#0F1724]' : 'bg-[#F8FAFF]'} py-8`}>
+      <div className="max-w-2xl mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
-          <h2 className={`text-2xl font-semibold ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>Escrow Payment</h2>
+          <h2 className={`text-2xl font-semibold ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
+            Escrow Payment
+          </h2>
           <div className="flex items-center gap-2">
             <EscrowStatusBadge status="PENDING" />
             <Button variant="ghost" onClick={() => onClose && onClose()}>Close</Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className={isDarkMode ? 'bg-[#12202B] border-gray-700' : 'bg-white border-gray-200'}>
-            <CardHeader>
-              <CardTitle className={isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}>Payment Method</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3">
-                {paymentMethods.map((method) => (
-                  <button
-                    key={method.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(method.id)}
-                    disabled={isProcessing}
-                    className={`p-4 rounded-lg text-left border transition-colors ${paymentMethod === method.id ? 'border-[#2563EB] bg-[#2563EB]/10' : isDarkMode ? 'border-gray-700 bg-[#0b1320]' : 'border-gray-200 bg-white'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <method.icon className={`size-5 ${paymentMethod === method.id ? 'text-[#2563EB]' : 'text-gray-500'}`} />
-                      <div>
-                        <div className={isDarkMode ? 'text-[#F9FAFB] font-medium' : 'text-[#1F2933] font-medium'}>{method.label}</div>
-                        <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{method.detail}</div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500 text-red-500 text-sm">{error}</div>
+        )}
 
-          <div className="md:col-span-2">
-            <Card className={isDarkMode ? 'bg-[#12202B] border-gray-700' : 'bg-white border-gray-200'}>
-              <CardHeader>
-                <CardTitle className={isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}>Transaction Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-[#2563EB]/5 rounded-lg">
-                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Total Amount</span>
-                    <span className="text-xl font-semibold text-[#2563EB]">PKR {orderData.totalAmount.toLocaleString()}</span>
-                  </div>
+        <Card className={isDarkMode ? 'bg-[#12202B] border-gray-700' : 'bg-white border-gray-200'}>
+          <CardHeader>
+            <CardTitle className={isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}>
+              Order: {orderData.title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between p-3 bg-[#2563EB]/5 rounded-lg">
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Total Amount</span>
+              <span className="text-xl font-semibold text-[#2563EB]">PKR {(orderData.totalAmount || 0).toLocaleString()}</span>
+            </div>
+            <div className={`flex justify-between p-3 rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Advance (30%) — released to manufacturer after acceptance</span>
+              <span className="font-medium text-green-600">PKR {advance.toLocaleString()}</span>
+            </div>
+            <div className={`flex justify-between p-3 rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Held in Escrow (70%) — released after your approval</span>
+              <span className="font-medium text-yellow-600">PKR {remaining.toLocaleString()}</span>
+            </div>
 
-                  <div className={`flex items-center justify-between p-3 rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Full Payment ({orderData.advancePercentage}%)</span>
-                    <span className={`text-lg font-medium ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>PKR {orderData.advanceAmount.toLocaleString()}</span>
-                  </div>
+            <div className="bg-[#2563EB]/10 border border-[#2563EB]/30 rounded-lg p-4 flex gap-3">
+              <Info className="size-5 text-[#2563EB] flex-shrink-0 mt-0.5" />
+              <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Aap Stripe secure checkout page par redirect honge. Payment ke baad escrow automatically update hoga.
+                Manufacturer 30% tabhi milega jab wo order accept kare. 70% aapki final approval pe milega.
+              </p>
+            </div>
 
-                  <div className={`flex items-center justify-between p-3 rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Payment Channel</span>
-                    <span className={`font-medium ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>{selectedMethod.label}</span>
-                  </div>
+            <div className="flex gap-3 items-center p-3 bg-green-500/5 border border-green-500/20 rounded-lg">
+              <ShieldCheck className="size-5 text-green-600 flex-shrink-0" />
+              <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                Powered by <strong>Stripe</strong> — Secure payment gateway
+              </span>
+            </div>
 
-                  <div className="bg-[#2563EB]/10 border border-[#2563EB]/30 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <Info className="size-5 text-[#2563EB] flex-shrink-0 mt-0.5" />
-                      <div className="space-y-2">
-                        <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Your payment will be secured in escrow as soon as this transaction succeeds.</p>
-                        <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>- The full payment is held securely by Skillora escrow<br/>- Work will begin once payment verification succeeds<br/>- Funds are released only after your final approval</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button onClick={handlePay} disabled={isProcessing} className="flex-1 bg-[#2563EB] text-white">
-                      {isProcessing ? 'Processing...' : `Pay PKR ${orderData.advanceAmount.toLocaleString()} with JazzCash`}
-                    </Button>
-                    <Button variant="outline" onClick={() => { setTransaction(null); setShowSuccess(false); }} className="flex-1">
-                      Cancel
-                    </Button>
-                  </div>
-                  {/* Dummy payer fields for JazzCash (client can enter transaction details) */}
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Input value={payerName} onChange={(e) => setPayerName(e.target.value)} placeholder="Payer Name" />
-                    <Input value={payerPhone} onChange={(e) => setPayerPhone(e.target.value)} placeholder="Payer Phone" />
-                    <Input value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} placeholder="Transaction Reference (e.g., JZ-123456)" />
-                    <Input value={payerNote} onChange={(e) => setPayerNote(e.target.value)} placeholder="Note (optional)" />
-                  </div>
-                  <div className="mt-3">
-                    <label className="text-sm text-gray-500">Upload Receipt / Screenshot (optional)</label>
-                    <input type="file" accept="image/*,application/pdf" onChange={(e) => setReceiptFile(e.target.files[0] || null)} className="block mt-2" />
-                    {receiptFile && <div className="text-xs text-gray-600 mt-1">Selected: {receiptFile.name}</div>}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+            <Button
+              onClick={handlePay}
+              disabled={isProcessing || !orderData.totalAmount}
+              className="w-full bg-[#2563EB] text-white py-5 text-base"
+            >
+              {isProcessing
+                ? <><Loader2 className="size-4 mr-2 animate-spin" />Redirecting to Safepay...</>
+                : `Pay PKR ${(orderData.totalAmount || 0).toLocaleString()} via Stripe`
+              }
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-
-      {showSuccess && transaction && (
-        <PaymentSuccessModal onClose={() => setShowSuccess(false)} orderData={orderData} transaction={transaction} />
-      )}
     </div>
   );
 }
 
 export default EscrowPage;
-
-/* Full-page escrow payment screen — use this component when you want a dedicated
-   payment page instead of the modal. Import and render it from a route or a parent
-   component (for example `ClientDashboard`) and pass `orderData` and `onClose`.
-*/

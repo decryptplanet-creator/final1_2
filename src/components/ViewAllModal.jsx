@@ -2,18 +2,47 @@ import { X, Star, Shield, MapPin, HardHat, Factory, User, MessageSquare, Mail } 
 import { Button } from './ui/button';
 import { Badge } from './ui/labelstatus';
 import { useTheme } from '../contexts/ThemeContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { IndividualProfile } from './IndividualProfile';
 import ChatModule from './ChatModule';
 import { EmailModal } from './EmailModal(Optional)';
 
-export function ViewAllModal({ onClose, type, onProfileClick, activeFilter, onFilterChange }) {
+export function ViewAllModal({ onClose, type, onProfileClick, activeFilter, onFilterChange, currentUserId }) {
   const { isDarkMode } = useTheme();
   const [showProfile, setShowProfile] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [showChat, setShowChat] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [selectedForContact, setSelectedForContact] = useState(null);
+  const [realUsers, setRealUsers] = useState([]);
+
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
+  useEffect(() => {
+    const roleMap = { labour: 'Labour', manufacturer: 'Manufacturer', client: 'client' };
+    const role = roleMap[type] || '';
+    fetch(`${API_BASE}/api/auth/users?role=${role}`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setRealUsers(data.map(u => ({
+            id: u._id,
+            name: u.name,
+            skill: u.skills?.[0] || u.companyName || u.role,
+            specialty: u.companyName || u.skills?.[0] || u.role,
+            type: u.role,
+            rating: u.trustScore ? +(u.trustScore / 20).toFixed(1) : 4.5,
+            verified: u.isVerified,
+            location: u.address?.city || 'Sialkot',
+            rate: u.hourlyRate || 0,
+            projects: 0,
+            orders: 0,
+            isRealUser: true,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, [type]);
 
   const labourData = [
     { id: '1', name: 'Ahmed Khan', skill: 'Stitching Expert', rating: 4.9, verified: true, rate: 650, location: 'Karachi' },
@@ -43,7 +72,8 @@ export function ViewAllModal({ onClose, type, onProfileClick, activeFilter, onFi
     { id: '5', name: 'Premium Brands', type: 'Brand Owner', rating: 4.5, verified: false, orders: 12, location: 'Faisalabad' },
   ];
 
-  const data = type === 'labour' ? labourData : type === 'manufacturer' ? manufacturerData : clientData;
+  const mockData = type === 'labour' ? labourData : type === 'manufacturer' ? manufacturerData : clientData;
+  const data = [...realUsers, ...mockData.filter(m => !realUsers.some(r => r.name === m.name))];
   
   // Apply filters
   const filteredData = data.filter(item => {
@@ -237,11 +267,11 @@ export function ViewAllModal({ onClose, type, onProfileClick, activeFilter, onFi
       {/* Chat Modal */}
       {showChat && selectedForContact && (
         <ChatModule
-          onClose={() => {
-            setShowChat(false);
-            setSelectedForContact(null);
-          }}
-          recipientName={selectedForContact.name}
+          currentUserId={currentUserId || 'current_user'}
+          receiverId={selectedForContact.id || selectedForContact._id || 'receiver_user'}
+          receiverName={selectedForContact.name}
+          orderId={`chat_${selectedForContact.id || selectedForContact._id}`}
+          onClose={() => { setShowChat(false); setSelectedForContact(null); }}
         />
       )}
 

@@ -13,31 +13,28 @@ export function PlaceOrderModal({ onClose, onProceedToEscrow }) {
     productName: '',
     quantity: '',
     deadline: '',
+    budget: '',
     description: ''
   });
 
-  // Fixed values for FYP
-  const totalAmount = 100000;
+  const totalAmount       = formData.budget ? parseFloat(formData.budget) : 0;
   const advancePercentage = 30;
-  const advanceAmount = totalAmount * (advancePercentage / 100); // 30,000
+  const advanceAmount     = Math.round(totalAmount * 0.3);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    const orderData = {
-      productName: formData.productName,
-      quantity: parseInt(formData.quantity),
-      deadline: formData.deadline,
+    onProceedToEscrow({
+      productName:       formData.productName,
+      quantity:          parseInt(formData.quantity),
+      deadline:          formData.deadline,
       totalAmount,
       advancePercentage,
       advanceAmount,
-      description: formData.description
-    };
-
-    onProceedToEscrow(orderData);
+      description:       formData.description,
+    });
   };
 
-  const isFormValid = formData.productName && formData.quantity && formData.deadline;
+  const isFormValid = formData.productName && formData.quantity && formData.deadline && totalAmount > 0;
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -104,6 +101,23 @@ export function PlaceOrderModal({ onClose, onProceedToEscrow }) {
                 />
               </div>
 
+              {/* Budget */}
+              <div className="space-y-2">
+                <Label htmlFor="budget" className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+                  Total Budget (PKR) *
+                </Label>
+                <Input
+                  id="budget"
+                  type="number"
+                  placeholder="e.g., 100000"
+                  value={formData.budget}
+                  onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                  className={isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}
+                  required
+                  min="1"
+                />
+              </div>
+
               {/* Deadline */}
               <div className="space-y-2">
                 <Label htmlFor="deadline" className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
@@ -148,14 +162,20 @@ export function PlaceOrderModal({ onClose, onProceedToEscrow }) {
               <div className={`p-4 rounded-lg space-y-3 ${isDarkMode ? 'bg-[#1F2933]' : 'bg-gray-50'}`}>
                 <div className="flex items-center justify-between">
                   <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Total Amount:</span>
-                  <span className={`text-2xl font-semibold text-[#2563EB]`}>
-                    PKR {totalAmount.toLocaleString()}
+                  <span className="text-2xl font-semibold text-[#2563EB]">
+                    PKR {totalAmount ? totalAmount.toLocaleString() : '—'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Advance Required (30%):</span>
                   <span className={`text-xl font-medium ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
-                    PKR {advanceAmount.toLocaleString()}
+                    PKR {totalAmount ? advanceAmount.toLocaleString() : '—'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Held in Escrow (70%):</span>
+                  <span className="text-yellow-600 font-medium">
+                    PKR {totalAmount ? (totalAmount - advanceAmount).toLocaleString() : '—'}
                   </span>
                 </div>
               </div>

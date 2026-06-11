@@ -1,10 +1,61 @@
 import { Star, CheckCircle, MessageSquare } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import io from 'socket.io-client';
+
+const API_BASE = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5004';
+const SOCKET_URL = 'http://localhost:5001';
+
+// Map DB user → profile card shape
+function dbUserToProfile(u) {
+  return {
+    id: u._id,
+    name: u.name,
+    type: u.role === 'Manufacturer' ? 'manufacturer' : 'labour',
+    rating: u.trustScore ? +(u.trustScore / 20).toFixed(1) : 4.5,
+    verified: u.isVerified,
+    specialty: u.companyName || (u.skills?.[0]) || u.role,
+    bio: `${u.role} from ${u.address?.city || 'Sialkot'}`,
+    city: u.address?.city || '',
+    avatar: null,
+    experience: '',
+    completedJobs: 0,
+    isRealUser: true,
+  };
+}
 
 export function HorizontalProfiles({ userType, onProfileClick, onChatClick, onViewAllClick }) {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const scrollContainerRef = useRef(null);
   const [isHovering, setIsHovering] = useState(false);
+  const [realUsers, setRealUsers] = useState([]);
+  const [newUserNotif, setNewUserNotif] = useState(null);
+
+  // Fetch real users from DB
+  useEffect(() => {
+    const role = userType === 'client' ? '' : userType === 'manufacturer' ? 'Labour' : 'Manufacturer';
+    const url = role
+      ? `${API_BASE}/api/auth/users?role=${role}`
+      : `${API_BASE}/api/auth/users`;
+    fetch(url)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setRealUsers(data.map(dbUserToProfile)); })
+      .catch(() => {});
+  }, [userType]);
+
+  // Socket: new_user_registered notification
+  useEffect(() => {
+    const socket = io(SOCKET_URL);
+    socket.on('new_user_registered', (user) => {
+      setNewUserNotif(user);
+      setRealUsers(prev => {
+        const mapped = dbUserToProfile({ ...user, _id: user.id });
+        const exists = prev.some(p => p.id === mapped.id);
+        return exists ? prev : [mapped, ...prev];
+      });
+      setTimeout(() => setNewUserNotif(null), 4000);
+    });
+    return () => socket.disconnect();
+  }, []);
 
   // Auto-scroll animation (Tamasha style)
   useEffect(() => {
@@ -309,7 +360,7 @@ export function HorizontalProfiles({ userType, onProfileClick, onChatClick, onVi
     }
   };
 
-  const profiles = getProfiles();
+  const profiles = [...realUsers, ...getProfiles().filter(m => !realUsers.some(r => r.name === m.name))];
 
   const handleProfileClick = (profile) => {
     setSelectedProfile(profile);
@@ -336,6 +387,14 @@ export function HorizontalProfiles({ userType, onProfileClick, onChatClick, onVi
           View All
         </button>
       </div>
+
+      {/* New user notification toast */}
+      {newUserNotif && (
+        <div className="mb-2 px-3 py-2 rounded-lg bg-green-500/20 border border-green-500/40 text-green-300 text-xs flex items-center gap-2">
+          <span className="size-2 rounded-full bg-green-400 animate-pulse inline-block" />
+          New user joined: <strong>{newUserNotif.name}</strong> ({newUserNotif.role})
+        </div>
+      )}
       
       {/* Instagram-style horizontal scroll */}
       <div 

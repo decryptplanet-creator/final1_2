@@ -617,13 +617,17 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
       {showManufacturerList && (
         <ManufacturerListModal
           order={order}
+          currentUserId={order.clientId || 'client_user'}
           onClose={() => setShowManufacturerList(false)}
         />
       )}
       
       {showChat && (
         <ChatModule
-          order={order}
+          currentUserId={userType === 'client' ? (order.clientId || 'client_user') : (order.manufacturer?.id || 'manufacturer_user')}
+          receiverId={userType === 'client' ? (order.manufacturer?.id || 'manufacturer_user') : (order.clientId || 'client_user')}
+          receiverName={userType === 'client' ? (order.manufacturer?.name || 'Manufacturer') : 'Client'}
+          orderId={order.id}
           onClose={() => setShowChat(false)}
         />
       )}

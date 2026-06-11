@@ -14,7 +14,11 @@ export function ProfileViewWithReview({
   const { isDarkMode } = useTheme();
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+    // ✅ FIX: Background click se close
+    <div 
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <Card className={`max-w-3xl w-full my-8 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
         <CardHeader className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
           <div className="flex items-center justify-between">
@@ -38,11 +42,12 @@ export function ProfileViewWithReview({
                 </div>
               </div>
             </div>
+            {/* ✅ FIX: Visible close button */}
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={onClose}
-              className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+              className="text-gray-400 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-full"
             >
               <X className="size-5" />
             </Button>
@@ -65,7 +70,6 @@ export function ProfileViewWithReview({
                   AI-verified performance metric
                 </p>
                 
-                {/* Rank Display */}
                 {manufacturer.rank && manufacturer.city && (
                   <div className="flex items-center gap-2 mb-2">
                     <TrendingUp className="size-4 text-green-500" />
@@ -75,7 +79,6 @@ export function ProfileViewWithReview({
                   </div>
                 )}
 
-                {/* Show update notification if new review */}
                 {newReview && previousTrustScore && (
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-full">
                     <TrendingUp className="size-4 text-green-500" />
@@ -86,7 +89,6 @@ export function ProfileViewWithReview({
                 )}
               </div>
               
-              {/* Trust Score Gauge */}
               <TrustScoreGauge
                 initialScore={previousTrustScore || manufacturer.trustScore}
                 finalScore={manufacturer.trustScore}
@@ -128,7 +130,6 @@ export function ProfileViewWithReview({
             </h3>
             
             <div className="space-y-3 max-h-[400px] overflow-y-auto">
-              {/* Show new review at top if exists */}
               {newReview && (
                 <div className={`p-4 rounded-lg border-2 ${
                   isDarkMode 
@@ -170,7 +171,6 @@ export function ProfileViewWithReview({
                 </div>
               )}
 
-              {/* Existing reviews */}
               {manufacturer.reviews.map((review) => (
                 <div 
                   key={review.id}
@@ -214,6 +214,3 @@ export function ProfileViewWithReview({
     </div>
   );
 }
-/*Displays manufacturer profile with trust score, AI tags, and reviews including new review impact.
-
-This is a React frontend component, mainly for web-based apps (can be adapted for mobile but built for web UI). */

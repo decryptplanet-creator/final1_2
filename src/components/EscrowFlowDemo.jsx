@@ -571,7 +571,7 @@ export function EscrowFlowDemo({ onClose }) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-6">
-                    <div className="grid grid-cols Ascending-descending order-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                       {/* Total Wallet */}
                       <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-[#2A3642]' : 'bg-white'}`}>
                         <div className="flex items-center justify-between mb-2">

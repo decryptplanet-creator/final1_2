@@ -8,7 +8,7 @@ import { Textarea } from './ui/textarea input';
 import { AlertTriangle, X, CheckCircle, Clock, AlertCircle, Shield } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
-const API_BASE_URL = 'http://localhost:5002';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted }) {
   const { isDarkMode } = useTheme();

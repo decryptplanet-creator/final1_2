@@ -34,21 +34,23 @@ export function SelfieCaptureModal({ onCapture, onClose, cnicUploaded, autoVerif
     }
   };
 
-  const startCamera = async () => {
+  const startCamera = async (retries = 3) => {
     console.log('[SelfieCaptureModal] startCamera called');
     setCameraError(null);
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        console.error('[SelfieCaptureModal] getUserMedia not supported');
         setCameraError('Camera is not supported in this browser.');
         return;
       }
 
       console.log('[SelfieCaptureModal] Requesting getUserMedia...');
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false,
-      });
+
+      const mediaStream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new DOMException('Timeout', 'AbortError')), 5000)
+        ),
+      ]);
       console.log('[SelfieCaptureModal] getUserMedia SUCCESS, tracks:', mediaStream.getTracks().length);
 
       streamRef.current = mediaStream;
@@ -70,6 +72,13 @@ export function SelfieCaptureModal({ onCapture, onClose, cnicUploaded, autoVerif
         setCameraError('Camera permission denied. Please allow access in browser settings.');
       } else if (e.name === 'NotFoundError') {
         setCameraError('No camera found on this device.');
+      } else if (e.name === 'AbortError') {
+        if (retries > 1) {
+          console.warn('[SelfieCaptureModal] AbortError, retrying...', retries - 1, 'left');
+          setTimeout(() => startCamera(retries - 1), 800);
+          return;
+        }
+        setCameraError('Camera is busy or unavailable. Close other apps using the camera, then try again.');
       } else {
         setCameraError('Camera access denied or not found.');
       }
@@ -371,32 +380,26 @@ export function SelfieCaptureModal({ onCapture, onClose, cnicUploaded, autoVerif
             <>
               {!stream ? (
                 <div className="space-y-4">
-                  {!cameraError && (
-                    <>
-                      <Button onClick={startCamera} className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white">
-                        <Camera className="size-4 mr-2" />
-                        Start Camera
-                      </Button>
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <div className="w-full border-t border-gray-300" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-white px-2 text-gray-500">Or</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
+                  <Button onClick={startCamera} className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white">
+                    <Camera className="size-4 mr-2" />
+                    Start Camera
+                  </Button>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-gray-500">Or</span>
+                    </div>
+                  </div>
                   <Button
                     onClick={() => fileInputRef.current?.click()}
-                    className={cameraError ? 'w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white' : 'w-full border-gray-300 text-[#1F2933] hover:bg-gray-50'}
-                    variant={cameraError ? 'default' : 'outline'}
+                    variant="outline"
+                    className="w-full border-gray-300 text-[#1F2933] hover:bg-gray-50"
                   >
                     <Upload className="size-4 mr-2" />
-                    {cameraError ? 'Choose Photo to Upload' : 'Upload Photo'}
+                    Upload Photo
                   </Button>
-
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -404,24 +407,6 @@ export function SelfieCaptureModal({ onCapture, onClose, cnicUploaded, autoVerif
                     className="hidden"
                     onChange={handleFileUpload}
                   />
-
-                  {cameraError && (
-                    <>
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <div className="w-full border-t border-gray-300" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-white px-2 text-gray-500">Or try again</span>
-                        </div>
-                      </div>
-                      <Button onClick={startCamera} variant="outline" className="w-full border-gray-300 text-[#1F2933] hover:bg-gray-50">
-                        <Camera className="size-4 mr-2" />
-                        Retry Camera Access
-                      </Button>
-                    </>
-                  )}
-
                   <p className="text-xs text-gray-400 text-center">
                     Your selfie will be verified against your CNIC using AI
                   </p>

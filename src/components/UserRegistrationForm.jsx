@@ -3,16 +3,29 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
+import { Textarea } from './ui/textarea input';
 import { Badge } from './ui/badge';
 import { 
-  ArrowLeft, Upload, Check, Eye, EyeOff, MapPin, Lock, 
+  ArrowLeft, Upload, Eye, EyeOff, MapPin, Lock, 
   CreditCard, Camera, Loader2, CheckCircle, Clock,
-  Briefcase, Factory, HardHat, Video, Award, Moon, Sun
+  Briefcase, Factory, HardHat, Moon, Sun, ShieldCheck
 } from 'lucide-react';
 import { SelfieCaptureModal } from './SelfieCaptureModal';
 import { LocationModal } from './LocationModal';
 import { useTheme } from '../contexts/ThemeContext';
+
+const POLICIES = [
+  { title: '1. Fraud Policy (PPC Sections 415–420)', text: 'Any user involved in fraud, deception, or dishonest activities shall be held accountable under applicable Pakistani laws.' },
+  { title: '2. Payment Policy (PPC Sections 23, 24, 25)', text: 'Clients and manufacturers must make agreed payments on time. Intentional non-payment may result in legal action.' },
+  { title: '3. False Information Policy (PPC Sections 24, 25)', text: 'Users must provide accurate personal, business, and professional information on the platform.' },
+  { title: '4. Forgery Policy (PPC Sections 463–471)', text: 'Submitting fake documents, contracts, certificates, or identification records is strictly prohibited.' },
+  { title: '5. Impersonation Policy (PPC Sections 416, 419)', text: 'No user may create an account or conduct activities using another person\'s or company\'s identity.' },
+  { title: '6. Abuse and Harassment Policy (PPC Sections 504, 509)', text: 'Abusive language, harassment, offensive behavior, or misconduct toward any user is prohibited.' },
+  { title: '7. Criminal Intimidation Policy (PPC Sections 503, 506)', text: 'Threats, coercion, blackmail, or intimidation of any user may result in legal action.' },
+  { title: '8. Theft and Misuse Policy (PPC Sections 378, 379)', text: 'Unauthorized use, theft, or misuse of another user\'s property, products, materials, or information is prohibited.' },
+  { title: '9. Account Suspension Policy', text: 'Users who repeatedly violate platform policies after warnings may have their accounts suspended or permanently terminated.' },
+  { title: '10. Legal Compliance Policy', text: 'All users agree to comply with the laws of Pakistan, and serious violations may be reported to the relevant authorities for legal proceedings.' },
+];
 
 export function RegistrationForm({ userType, onComplete, onBack }) {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -21,6 +34,7 @@ export function RegistrationForm({ userType, onComplete, onBack }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSelfieCapture, setShowSelfieCapture] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [policiesAccepted, setPoliciesAccepted] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -46,11 +60,8 @@ export function RegistrationForm({ userType, onComplete, onBack }) {
   const [cnicUploaded, setCnicUploaded] = useState(false);
   const [selfieData, setSelfieData] = useState(null);
   const [selfieCaptured, setSelfieCaptured] = useState(false);
-  const [videoFile, setVideoFile] = useState(null);
-  const [videoUploaded, setVideoUploaded] = useState(false);
   const [trustScore, setTrustScore] = useState(0);
   const cnicInputRef = useRef(null);
-  const videoInputRef = useRef(null);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -67,14 +78,6 @@ export function RegistrationForm({ userType, onComplete, onBack }) {
     if (file) {
       setCnicFile(file);
       setCnicUploaded(true);
-    }
-  };
-
-  const handleVideoUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setVideoFile(file);
-      setVideoUploaded(true);
     }
   };
 
@@ -98,7 +101,6 @@ export function RegistrationForm({ userType, onComplete, onBack }) {
   };
 
   const handleVerificationSubmit = () => {
-    // Validate verification docs
     if (!cnicUploaded || !cnicFile) {
       alert('Please upload your CNIC');
       return;
@@ -107,14 +109,12 @@ export function RegistrationForm({ userType, onComplete, onBack }) {
       alert('Please capture your selfie');
       return;
     }
-    
-    // Start verification process
+    if (!policiesAccepted) {
+      alert('Please accept the Platform Policies to continue');
+      return;
+    }
     setStep('verifying');
-    
-    // Simulate verification (2 seconds)
-    setTimeout(() => {
-      setStep('verified');
-    }, 2000);
+    setTimeout(() => setStep('verified'), 2000);
   };
 
   const handleComplete = () => {
@@ -225,7 +225,7 @@ export function RegistrationForm({ userType, onComplete, onBack }) {
                   onClick={() => setShowLocationModal(true)}
                   className={`mt-2 ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border-gray-300 text-[#1F2933]'}`}
                 >
-                  <Video className="size-4 mr-2" />
+                  <MapPin className="size-4 mr-2" />
                   Select Location
                 </Button>
               </div>
@@ -438,50 +438,36 @@ export function RegistrationForm({ userType, onComplete, onBack }) {
                 )}
               </div>
 
-              {/* Video Upload for Manufacturers and Labour Only */}
-              {(userType === 'manufacturer' || userType === 'labour') && (
-                <div>
-                  <Label className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'} flex items-center gap-2 mb-3`}>
-                    <Video className="size-4" />
-                    Skills Showcase Video {userType === 'labour' ? '*' : '(Optional)'}
-                  </Label>
-                  <input
-                    type="file"
-                    ref={videoInputRef}
-                    onChange={handleVideoUpload}
-                    accept="video/*"
-                    className="hidden"
-                  />
-                  <div 
-                    onClick={() => videoInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                      videoFile 
-                        ? `border-[#2563EB] ${isDarkMode ? 'bg-[#2563EB]/10' : 'bg-[#2563EB]/5'}` 
-                        : `${isDarkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-300 hover:border-gray-400'}`
-                    }`}
-                  >
-                    {videoFile ? (
-                      <div className="flex items-center justify-center gap-3">
-                        <CheckCircle className="size-6 text-[#2563EB]" />
-                        <div className="text-left">
-                          <p className={`font-medium ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>{videoFile.name}</p>
-                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Video uploaded successfully</p>
-                        </div>
+              {/* Policies Box */}
+              <div>
+                <Label className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'} flex items-center gap-2 mb-3`}>
+                  <ShieldCheck className="size-4" />
+                  Platform Policies
+                </Label>
+                <div className={`border rounded-lg overflow-hidden ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}>
+                  <div className={`h-52 overflow-y-scroll p-4 space-y-3 ${isDarkMode ? 'bg-[#1F2933]' : 'bg-gray-50'}`}>
+                    {POLICIES.map((p, i) => (
+                      <div key={i}>
+                        <p className={`text-sm font-semibold ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>{p.title}</p>
+                        <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{p.text}</p>
                       </div>
-                    ) : (
-                      <div>
-                        <Video className={`size-8 mx-auto mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                        <p className={`mb-1 ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
-                          {userType === 'labour' 
-                            ? 'Upload skills demonstration video' 
-                            : 'Upload factory/workshop tour video'}
-                        </p>
-                        <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Supported: MP4, MOV, AVI (Max 50MB)</p>
-                      </div>
-                    )}
+                    ))}
+                  </div>
+                  <div className={`px-4 py-3 border-t ${isDarkMode ? 'border-gray-700 bg-[#2A3642]' : 'border-gray-300 bg-white'}`}>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={policiesAccepted}
+                        onChange={(e) => setPoliciesAccepted(e.target.checked)}
+                        className="size-4 accent-[#2563EB] cursor-pointer"
+                      />
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-[#F9FAFB]' : 'text-[#1F2933]'}`}>
+                        I Agree to Policies
+                      </span>
+                    </label>
                   </div>
                 </div>
-              )}
+              </div>
 
               <div className="flex gap-3 mt-6">
                 <Button
@@ -493,7 +479,8 @@ export function RegistrationForm({ userType, onComplete, onBack }) {
                 </Button>
                 <Button 
                   onClick={handleVerificationSubmit}
-                  className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8] text-white"
+                  disabled={!policiesAccepted}
+                  className="flex-1 bg-[#2563EB] hover:bg-[#1d4ed8] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Submit for Verification
                 </Button>

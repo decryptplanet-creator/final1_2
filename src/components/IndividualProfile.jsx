@@ -11,7 +11,7 @@ import ChatModule from './ChatModule';
 import { EmailModal } from './EmailModal(Optional)';
 import { LocationModal } from './LocationModal';
 
-export function IndividualProfile({ profile, userType, onClose }) {
+export function IndividualProfile({ profile, userType, onClose, currentUserId }) {
   const [showChat, setShowChat] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
@@ -416,7 +416,7 @@ export function IndividualProfile({ profile, userType, onClose }) {
       </div>
       
       {/* Modals */}
-      {showChat && <ChatModule onClose={() => setShowChat(false)} />}
+      {showChat && <ChatModule currentUserId={currentUserId || 'current_user'} receiverId={profile?.id || profile?._id || 'receiver_user'} receiverName={profile?.name || 'User'} orderId={`chat_${profile?.id || profile?._id}`} onClose={() => setShowChat(false)} />}
       {showEmail && (
         <EmailModal 
           onClose={() => setShowEmail(false)}

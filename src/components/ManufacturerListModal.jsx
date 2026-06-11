@@ -77,7 +77,7 @@ const manufacturers = [
   },
 ];
 
-export function ManufacturerListModal({ onClose, orderTitle }) {
+export function ManufacturerListModal({ onClose, orderTitle, currentUserId }) {
   const { isDarkMode } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [showChat, setShowChat] = useState(false);
@@ -281,10 +281,11 @@ export function ManufacturerListModal({ onClose, orderTitle }) {
       {/* Sub-Modals */}
       {showChat && (
         <ChatModule
-          onClose={() => {
-            setShowChat(false);
-            setSelectedManufacturer(null);
-          }}
+          currentUserId={currentUserId || 'client_user'}
+          receiverId={selectedManufacturer?.id || 'manufacturer_user'}
+          receiverName={selectedManufacturer?.name || 'Manufacturer'}
+          orderId={`order_${selectedManufacturer?.id || 'general'}`}
+          onClose={() => { setShowChat(false); setSelectedManufacturer(null); }}
         />
       )}
 
