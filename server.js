@@ -36,25 +36,59 @@ function saveMessages(data) {
 
 const messages = loadMessages();
 
+// ─── GET messages by orderId ──────────────────────────────────────────────────
 app.get('/api/messages/:orderId', (req, res) => {
   res.json(messages[req.params.orderId] || []);
 });
 
+// ─── POST new message ─────────────────────────────────────────────────────────
 app.post('/api/messages', (req, res) => {
-  const msg = { ...req.body, id: Date.now().toString() };
+  const now = new Date().toISOString();
+  const msg = {
+    ...req.body,
+    _id: Date.now().toString(),      // ✅ _id add kiya (ChatModule use karta hai)
+    id: Date.now().toString(),
+    createdAt: now,                  // ✅ createdAt add kiya (time display ke liye)
+    updatedAt: now,
+  };
+
   const orderId = msg.orderId;
   if (!messages[orderId]) messages[orderId] = [];
   messages[orderId].push(msg);
   saveMessages(messages);
-  res.json(msg);
+
+  // ✅ REST save ke baad socket se bhi broadcast karo
+  io.to(orderId).emit('receive_message', { message: msg });
+
+  res.json({ message: msg });        // ✅ { message: msg } format (ChatModule expect karta hai)
 });
 
+// ─── Socket.io ────────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
-  socket.on('join_chat', (orderId) => socket.join(orderId));
-  socket.on('leave_chat', (orderId) => socket.leave(orderId));
+  console.log('🔌 User connected:', socket.id);
+
+  socket.on('join_chat', (orderId) => {
+    socket.join(orderId);
+    console.log(`✅ Joined room: ${orderId}`);
+  });
+
+  socket.on('leave_chat', (orderId) => {
+    socket.leave(orderId);
+    console.log(`❌ Left room: ${orderId}`);
+  });
+
+  // ✅ send_message — socket se direct message
   socket.on('send_message', (msg) => {
-    // Broadcast to ALL in room (including sender) for 2-sided real-time
     io.to(msg.orderId).emit('receive_message', msg);
+  });
+
+  // ✅ notify_message — ChatModule yeh emit karta hai REST save ke baad
+  socket.on('notify_message', (msg) => {
+    io.to(msg.orderId).emit('receive_message', msg);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔴 User disconnected:', socket.id);
   });
 });
 

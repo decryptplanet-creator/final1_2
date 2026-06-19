@@ -1,3 +1,4 @@
+import { ChatInbox } from './ChatInbox';
 import { ProfileModal } from './ProfileMangement';
 import ChatModule from './ChatModule';
 import { HorizontalProfiles } from './HorizontalProfiles';
@@ -19,6 +20,7 @@ export function LabourDashboard({ user, onLogout }) {
   const { isDarkMode } = useTheme();
   const [showProfile, setShowProfile] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showInbox, setShowInbox] = useState(false); // ✅ NEW
   const [chatTarget, setChatTarget] = useState(null);
   const [activeTab, setActiveTab] = useState('offers');
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
@@ -35,7 +37,6 @@ export function LabourDashboard({ user, onLogout }) {
   const [completedWork, setCompletedWork] = useState([]);
   const [earnings] = useState({ total: 47500, currentMonth: 12300 });
 
-  // ✅ FIX 1: Port 5001 → 5003
   const API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token') || '';
   const authHeaders = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` });
@@ -56,8 +57,6 @@ export function LabourDashboard({ user, onLogout }) {
         description: o.description,
       });
       const toActive = (o) => ({ ...toOffer(o), status: 'accepted' });
-
-      // ✅ FIX 2: Fallback to dummy data agar backend se kuch na aaye
       setWorkOffers(available?.length ? available.map(toOffer) : [
         { id: 'wo1', orderTitle: 'Fabric Cutting & Stitching', manufacturerName: 'Faisal Garments', rate: 700, duration: '3 days', status: 'pending' },
         { id: 'wo2', orderTitle: 'Embroidery Work - 500 Units', manufacturerName: 'Zara Textiles Pvt.', rate: 850, duration: '7 days', status: 'pending' },
@@ -69,7 +68,6 @@ export function LabourDashboard({ user, onLogout }) {
       ]);
     } catch (error) {
       console.error("Data load nahi ho saka:", error);
-      // Dummy data on error
       setWorkOffers([
         { id: 'wo1', orderTitle: 'Fabric Cutting & Stitching', manufacturerName: 'Faisal Garments', rate: 700, duration: '3 days', status: 'pending' },
         { id: 'wo2', orderTitle: 'Embroidery Work - 500 Units', manufacturerName: 'Zara Textiles Pvt.', rate: 850, duration: '7 days', status: 'pending' },
@@ -79,8 +77,11 @@ export function LabourDashboard({ user, onLogout }) {
 
   useEffect(() => { fetchLabourData(); }, []); // eslint-disable-line
 
-  // ✅ FIX 3: Better error handling in handleAcceptOffer
   const handleAcceptOffer = async (offer) => {
+    if (!offer.id || offer.id.startsWith('wo') || offer.id.startsWith('aw')) {
+      alert('Ye demo data hai — real orders manufacturer se aayenge!');
+      return;
+    }
     try {
       const res = await fetch(`${API}/api/orders/labour/accept/${offer.id}`, {
         method: 'PUT', headers: authHeaders(),
@@ -132,7 +133,8 @@ export function LabourDashboard({ user, onLogout }) {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={() => setShowEmail(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10"><Mail className="size-5" /></Button>
-              <Button variant="ghost" size="icon" onClick={() => setShowChat(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10"><MessageSquare className="size-5" /></Button>
+              {/* ✅ MessageSquare opens Inbox now */}
+              <Button variant="ghost" size="icon" onClick={() => setShowInbox(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10"><MessageSquare className="size-5" /></Button>
               <Button variant="ghost" size="icon" onClick={() => setShowNotifications(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10"><Bell className="size-5" /></Button>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} className={isDarkMode ? 'text-[#F9FAFB] hover:bg-gray-700' : 'text-[#1F2933] hover:bg-gray-100'}><Settings className="size-5" /></Button>
               <Button variant="ghost" onClick={() => setShowProfile(true)} className={isDarkMode ? 'text-[#F9FAFB] hover:bg-gray-700' : 'text-[#1F2933] hover:bg-gray-100'}>Profile</Button>
@@ -237,7 +239,10 @@ export function LabourDashboard({ user, onLogout }) {
                     </div>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    <Button variant="outline" size="sm" onClick={() => { setChatTarget({ id: work.manufacturerId || work.id, name: work.manufacturerName, orderId: work.id }); setShowChat(true); }} className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      setChatTarget({ id: work.manufacturerId, name: work.manufacturerName, orderId: work.id });
+                      setShowChat(true);
+                    }} className="flex items-center gap-1">
                       <MessageSquare className="size-4" /> Chat
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => { setSelectedJob(work); setShowJobDetail(true); }} className="flex items-center gap-1">
@@ -283,7 +288,15 @@ export function LabourDashboard({ user, onLogout }) {
 
       {showProfile && <ProfileModal user={selectedProfileUser || user} onClose={() => setShowProfile(false)} />}
       {showSearch && <SearchModal onClose={() => setShowSearch(false)} userType="labour" currentUserId={user?.id} />}
-      {showChat && <ChatModule currentUserId={user?.id || 'labour_user'} receiverId={chatTarget?.id || 'manufacturer_user'} receiverName={chatTarget?.name || 'Manufacturer'} orderId={chatTarget?.orderId || `chat_${user?.id || 'general'}`} onClose={() => { setShowChat(false); setChatTarget(null); }} />}
+      {showChat && (
+        <ChatModule
+          currentUserId={user?.id || user?._id || 'labour_user'}
+          receiverId={chatTarget?.id || 'manufacturer_user'}
+          receiverName={chatTarget?.name || 'Manufacturer'}
+          orderId={chatTarget?.orderId || `chat_${user?.id || 'general'}`}
+          onClose={() => { setShowChat(false); setChatTarget(null); }}
+        />
+      )}
       {showNotifications && <NotificationsModal onClose={() => setShowNotifications(false)} />}
       {showEmail && <EmailModal onClose={() => setShowEmail(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} userType="labour" />}
@@ -295,6 +308,22 @@ export function LabourDashboard({ user, onLogout }) {
           targetName={reviewTarget.manufacturerName}
           targetRole="manufacturer"
           orderId={reviewTarget.id}
+        />
+      )}
+      {/* ✅ ChatInbox Modal */}
+      {showInbox && (
+        <ChatInbox
+          currentUserId={user?.id || user?._id}
+          onClose={() => setShowInbox(false)}
+          onOpenChat={(conv) => {
+            setChatTarget({
+              id: conv.with?.id,
+              name: conv.with?.name,
+              orderId: conv.orderId,
+            });
+            setShowInbox(false);
+            setShowChat(true);
+          }}
         />
       )}
     </div>

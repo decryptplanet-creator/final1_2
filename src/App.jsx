@@ -65,13 +65,16 @@ function AppContent() {
 
   // ── Direct URL routes ──────────────────────────────────────────────────────
   if (pathLower === '/client') {
-    return <ClientDashboard user={savedUser || GUEST_USERS.client} onLogout={logoutFn} />;
+    const user = (savedUser?.role === 'client' || savedUser?.type === 'client') ? savedUser : GUEST_USERS.client;
+    return <ClientDashboard user={user} onLogout={logoutFn} />;
   }
   if (pathLower === '/manufacturer') {
-    return <ManufacturerDashboard user={savedUser || GUEST_USERS.manufacturer} onLogout={logoutFn} />;
+    const user = (savedUser?.role === 'manufacturer' || savedUser?.type === 'manufacturer') ? savedUser : GUEST_USERS.manufacturer;
+    return <ManufacturerDashboard user={user} onLogout={logoutFn} />;
   }
   if (pathLower === '/labour' || pathLower === '/labor') {
-    return <LabourDashboard user={savedUser || GUEST_USERS.labour} onLogout={logoutFn} />;
+    const user = (savedUser?.role === 'labour' || savedUser?.role === 'labor' || savedUser?.type === 'labour' || savedUser?.type === 'labor') ? savedUser : GUEST_USERS.labour;
+    return <LabourDashboard user={user} onLogout={logoutFn} />;
   }
   if (pathLower === '/admin') {
     if (!isAdmin(savedUser)) {

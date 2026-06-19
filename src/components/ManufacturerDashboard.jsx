@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Badge } from './ui/labelstatus';
-import { Sparkles, MessageSquare, Bell, LogOut, Search, HardHat, Star, Package, Clock, Wallet, Settings, Mail, Filter, Shield, TrendingUp, MapPin, Factory, Plus } from 'lucide-react';
+import { Sparkles, MessageSquare, Bell, LogOut, Search, HardHat, Star, Package, Clock, Wallet, Settings, Mail, Filter, Shield, TrendingUp, MapPin, Factory, Plus, Inbox } from 'lucide-react';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { SearchModal } from './SearchModal';
 import { ProfileModal } from './ProfileMangement';
@@ -11,6 +11,7 @@ import ChatModule from './ChatModule';
 import { HireLabourModal } from './HireLabourModal';
 import { HorizontalProfiles } from './HorizontalProfiles';
 import { AcceptOrderModal } from './AcceptOrderModal';
+import { ChatInbox } from './ChatInbox';
 import { NotificationsModal } from './NotificationsModal';
 import { EmailModal } from './EmailModal(Optional)';
 import { SettingsModal } from './SettingsModal';
@@ -29,6 +30,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
   const [showSearch, setShowSearch] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
   const [chatTarget, setChatTarget] = useState(null);
   const [showHireLabour, setShowHireLabour] = useState(false);
   const [showAcceptOrder, setShowAcceptOrder] = useState(false);
@@ -200,6 +202,9 @@ export function ManufacturerDashboard({ user, onLogout }) {
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowEmail(true)} title="Email" className="text-[#2563EB] hover:bg-[#2563EB]/10">
                 <Mail className="size-5" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setShowInbox(true)} title="Inbox" className="text-[#2563EB] hover:bg-[#2563EB]/10">
+                <Inbox className="size-5" />
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowChat(true)} title="Messages" className="text-[#2563EB] hover:bg-[#2563EB]/10">
                 <MessageSquare className="size-5" />
@@ -516,10 +521,19 @@ export function ManufacturerDashboard({ user, onLogout }) {
       {showChat && (
         <ChatModule 
           currentUserId={user?.id || 'manufacturer_user'}
+          currentUserName={user?.name || 'Manufacturer'}
           receiverId={chatTarget?.id || 'client_user'}
           receiverName={chatTarget?.name || 'Client'}
           orderId={chatTarget?.orderId || `chat_${user?.id || 'general'}`}
           onClose={() => { setShowChat(false); setChatTarget(null); }}
+        />
+      )}
+
+      {/* ✅ FIX 3: Inbox modal now correctly rendered with valid currentUserId */}
+      {showInbox && (
+        <ChatInbox
+          currentUserId={user?.id}
+          onClose={() => setShowInbox(false)}
         />
       )}
 
@@ -550,8 +564,14 @@ export function ManufacturerDashboard({ user, onLogout }) {
           }}
           onAccept={() => {
             fetchOrders();
+            // ✅ Open chat with this client right after accepting
+            const clientId   = selectedOrder.client?.id   || selectedOrder.clientId || 'client_user';
+            const clientName = selectedOrder.client?.name || 'Client';
+            const orderId    = selectedOrder._id || selectedOrder.id;
+            setChatTarget({ id: clientId, name: clientName, orderId });
             setShowAcceptOrder(false);
             setSelectedOrder(null);
+            setShowChat(true);
           }}
         />
       )}

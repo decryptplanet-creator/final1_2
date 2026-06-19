@@ -8,7 +8,7 @@ import { Badge } from './ui/labelstatus';
 import { 
   ArrowLeft, Upload, Check, Eye, EyeOff, MapPin, Lock, 
   CreditCard, Camera, Loader2, CheckCircle, Video,
-  Briefcase, Factory, HardHat, X, Sparkles, FileText, Barcode, ShieldCheck
+  Briefcase, Factory, HardHat, X, Sparkles, FileText, Barcode, ShieldCheck, Languages
 } from 'lucide-react';
 
 const POLICIES = [
@@ -29,6 +29,74 @@ import { useTheme } from '../contexts/ThemeContext';
 
 const CNIC_VERIFICATION_API_URL = import.meta.env.VITE_CNIC_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+// ─── Urdu Translations (Labour only) ─────────────────────────────────────────
+const nastaliqStyle = {
+  fontFamily: "'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif",
+  direction: 'rtl',
+  lineHeight: '2.2',
+};
+
+const T = {
+  en: {
+    registerAs: 'Register as', step1: 'Step 1: Basic Information', step2: 'Step 2: Upload Documents',
+    fullName: 'Full Name *', fullNamePlaceholder: 'Enter your full name',
+    email: 'Email Address *', emailPlaceholder: 'your.email@example.com',
+    phone: 'Phone Number *', phonePlaceholder: '+92 300 1234567',
+    cnic: 'CNIC Number *', cnicPlaceholder: '12345-1234567-1',
+    dob: 'Date of Birth *',
+    address: 'Address *', addressPlaceholder: 'Enter your address',
+    verifyGPS: 'Verify GPS', update: 'Update', gpsVerified: 'GPS Verified',
+    skills: 'Skills (comma separated) *', skillsPlaceholder: 'e.g. Stitching, Pattern Making, Embroidery',
+    dailyRate: 'Daily Rate (PKR) *', dailyRatePlaceholder: 'e.g. 800',
+    experience: 'Years of Experience', experiencePlaceholder: 'e.g. 5 years',
+    workHistory: 'Work History', workHistoryPlaceholder: 'Describe your previous work experience...',
+    password: 'Password *', passwordPlaceholder: 'Minimum 8 characters',
+    confirmPassword: 'Confirm Password *', confirmPasswordPlaceholder: 'Re-enter password',
+    continue: 'Continue to Verification',
+    uploadCNIC: 'Upload CNIC (Front & Back) *',
+    cnicFront: 'CNIC front', cnicBack: 'CNIC back',
+    uploadFront: 'Upload front', uploadBack: 'Upload back',
+    changeFront: 'Change front', changeBack: 'Change back',
+    cnicUploaded: 'CNIC Uploaded Successfully', uploadDifferent: 'Upload Different Image',
+    selfie: 'Capture Selfie for Verification *', selfieDesc: 'Capture a clear selfie for face verification',
+    openCamera: 'Open Camera', selfieCaptured: 'Selfie Captured Successfully', retakeSelfie: 'Retake Selfie',
+    skillsVideo: 'Upload Skills Video', videoDesc: 'Show your skills in action (max 30 seconds)',
+    selectVideo: 'Select Video', videoUploaded: 'Video Uploaded Successfully', uploadDiffVideo: 'Upload Different Video',
+    policies: 'Platform Policies', agreePolicy: 'I Agree to Policies',
+    submit: 'Submit for Verification', notUploaded: 'Not uploaded yet',
+    coordinates: 'Coordinates',
+  },
+  ur: {
+    registerAs: 'رجسٹر کریں بطور', step1: 'مرحلہ ۱: بنیادی معلومات', step2: 'مرحلہ ۲: دستاویزات اپلوڈ کریں',
+    fullName: 'پورا نام *', fullNamePlaceholder: 'اپنا پورا نام لکھیں',
+    email: 'ای میل *', emailPlaceholder: 'آپ کی ای میل',
+    phone: 'فون نمبر *', phonePlaceholder: '۰۳۰۰-۱۲۳۴۵۶۷',
+    cnic: 'شناختی کارڈ نمبر *', cnicPlaceholder: '12345-1234567-1',
+    dob: 'تاریخ پیدائش *',
+    address: 'پتہ *', addressPlaceholder: 'اپنا پتہ لکھیں',
+    verifyGPS: 'جی پی ایس تصدیق', update: 'تبدیل کریں', gpsVerified: 'جی پی ایس تصدیق شدہ',
+    skills: 'ہنر (کاما سے الگ کریں) *', skillsPlaceholder: 'مثلاً سلائی، کٹائی، کڑھائی',
+    dailyRate: 'روزانہ اجرت (روپے) *', dailyRatePlaceholder: 'مثلاً ۸۰۰',
+    experience: 'تجربہ (سال)', experiencePlaceholder: 'مثلاً ۵ سال',
+    workHistory: 'کام کی تاریخ', workHistoryPlaceholder: 'اپنا پچھلا کام کا تجربہ بتائیں...',
+    password: 'پاس ورڈ *', passwordPlaceholder: 'کم از کم ۸ حروف',
+    confirmPassword: 'پاس ورڈ دوبارہ *', confirmPasswordPlaceholder: 'پاس ورڈ دوبارہ لکھیں',
+    continue: 'تصدیق کی طرف جائیں',
+    uploadCNIC: 'شناختی کارڈ اپلوڈ کریں (آگے اور پیچھے) *',
+    cnicFront: 'شناختی کارڈ سامنے', cnicBack: 'شناختی کارڈ پیچھے',
+    uploadFront: 'سامنے اپلوڈ کریں', uploadBack: 'پیچھے اپلوڈ کریں',
+    changeFront: 'سامنے تبدیل کریں', changeBack: 'پیچھے تبدیل کریں',
+    cnicUploaded: 'شناختی کارڈ کامیابی سے اپلوڈ ہو گیا', uploadDifferent: 'دوسری تصویر اپلوڈ کریں',
+    selfie: 'تصدیق کے لیے سیلفی لیں *', selfieDesc: 'اپنی واضح سیلفی لیں',
+    openCamera: 'کیمرہ کھولیں', selfieCaptured: 'سیلفی کامیابی سے لی گئی', retakeSelfie: 'دوبارہ سیلفی لیں',
+    skillsVideo: 'ہنر کی ویڈیو اپلوڈ کریں', videoDesc: 'اپنا ہنر دکھانے والی ویڈیو اپلوڈ کریں (زیادہ سے زیادہ ۳۰ سیکنڈ)',
+    selectVideo: 'ویڈیو منتخب کریں', videoUploaded: 'ویڈیو کامیابی سے اپلوڈ ہو گئی', uploadDiffVideo: 'دوسری ویڈیو اپلوڈ کریں',
+    policies: 'پلیٹ فارم پالیسیاں', agreePolicy: 'میں پالیسیوں سے اتفاق کرتا/کرتی ہوں',
+    submit: 'تصدیق کے لیے جمع کریں', notUploaded: 'ابھی اپلوڈ نہیں ہوا',
+    coordinates: 'کوآرڈینیٹ',
+  },
+};
+
 const fileToBase64 = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onload = () => {
@@ -44,6 +112,8 @@ const dataUrlToBase64 = (dataUrl) => String(dataUrl || '').split(',')[1] || Stri
 export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack }) {
   const { isDarkMode } = useTheme();
   const [step, setStep] = useState('basic');
+  const [isUrdu, setIsUrdu] = useState(false);
+  const t = (userType === 'labour' && isUrdu) ? T.ur : T.en;
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSelfieCapture, setShowSelfieCapture] = useState(false);
@@ -325,7 +395,10 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
   // Step 1: Basic Information
   if (step === 'basic') {
     return (
-      <div className={`min-h-screen ${isDarkMode ? 'bg-[#1F2933]' : 'bg-[#F9FAFB]'} flex items-center justify-center p-4`}>
+      <div
+        className={`min-h-screen ${isDarkMode ? 'bg-[#1F2933]' : 'bg-[#F9FAFB]'} flex items-center justify-center p-4`}
+        style={isUrdu ? { direction: 'rtl' } : {}}
+      >
         <Card className={`w-full max-w-2xl shadow-xl ${isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}`}>
           <CardHeader className="bg-[#2563EB] text-white rounded-t-lg">
             <div className="flex items-center justify-between">
@@ -341,22 +414,41 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                 <div className="size-10 rounded-full bg-white/20 flex items-center justify-center">
                   {getUserTypeIcon()}
                 </div>
-                <div>
-                  <CardTitle className="text-xl">Register as {getUserTypeLabel()}</CardTitle>
-                  <p className="text-sm text-white/90">Step 1: Basic Information</p>
+                <div style={isUrdu ? { fontFamily: "'Noto Nastaliq Urdu', serif", lineHeight: '2' } : {}}>
+                  <CardTitle className="text-xl">{t.registerAs} {getUserTypeLabel()}</CardTitle>
+                  <p className="text-sm text-white/90">{t.step1}</p>
                 </div>
               </div>
-              <div className="size-10" /> {/* Spacer */}
+              {userType === 'labour' ? (
+                <button
+                  type="button"
+                  onClick={() => setIsUrdu(!isUrdu)}
+                  aria-label={isUrdu ? 'Switch to English' : 'اردو میں دیکھیں'}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all"
+                  style={{
+                    background: isUrdu ? '#fff' : 'rgba(255,255,255,0.18)',
+                    color: isUrdu ? '#2563EB' : '#fff',
+                    border: '1.5px solid #fff',
+                    cursor: 'pointer',
+                    direction: 'ltr',
+                  }}
+                >
+                  <Languages className="size-4" />
+                  {isUrdu ? 'English' : 'اردو'}
+                </button>
+              ) : (
+                <div className="size-10" />
+              )}
             </div>
           </CardHeader>
           
           <CardContent className="p-6 space-y-4">
             {/* Name */}
             <div>
-              <Label htmlFor="name" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Full Name *</Label>
+              <Label htmlFor="name" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.fullName}</Label>
               <Input
                 id="name"
-                placeholder="Enter your full name"
+                placeholder={t.fullNamePlaceholder}
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 className={`mt-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
@@ -365,11 +457,11 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
 
             {/* Email */}
             <div>
-              <Label htmlFor="email" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Email Address *</Label>
+              <Label htmlFor="email" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.email}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="your.email@example.com"
+                placeholder={t.emailPlaceholder}
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 className={`mt-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
@@ -378,10 +470,10 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
 
             {/* Phone */}
             <div>
-              <Label htmlFor="phone" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Phone Number *</Label>
+              <Label htmlFor="phone" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.phone}</Label>
               <Input
                 id="phone"
-                placeholder="+92 300 1234567"
+                placeholder={t.phonePlaceholder}
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 className={`mt-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
@@ -390,10 +482,10 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
 
             {/* CNIC */}
             <div>
-              <Label htmlFor="cnic" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>CNIC Number *</Label>
+              <Label htmlFor="cnic" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.cnic}</Label>
               <Input
                 id="cnic"
-                placeholder="12345-1234567-1"
+                placeholder={t.cnicPlaceholder}
                 value={formData.cnic}
                 onChange={(e) => handleInputChange('cnic', e.target.value)}
                 className={`mt-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
@@ -401,7 +493,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
             </div>
 
             <div>
-              <Label htmlFor="dob" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Date of Birth *</Label>
+              <Label htmlFor="dob" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.dob}</Label>
               <Input
                 id="dob"
                 type="date"
@@ -414,12 +506,12 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
             {/* Address with GPS */}
             <div>
               <Label htmlFor="address" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>
-                Address * {locationVerified && <Badge variant="outline" className="ml-2 text-xs bg-green-500/10 text-green-600 border-green-500">GPS Verified</Badge>}
+                {t.address} {locationVerified && <Badge variant="outline" className="ml-2 text-xs bg-green-500/10 text-green-600 border-green-500">{t.gpsVerified}</Badge>}
               </Label>
               <div className="flex gap-2 mt-1">
                 <Input
                   id="address"
-                  placeholder="Enter your address"
+                  placeholder={t.addressPlaceholder}
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                   className={`flex-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
@@ -430,12 +522,12 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                   className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white"
                 >
                   <MapPin className="size-4 mr-2" />
-                  {locationVerified ? 'Update' : 'Verify GPS'}
+                  {locationVerified ? t.update : t.verifyGPS}
                 </Button>
               </div>
               {location && (
                 <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Coordinates: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                  {t.coordinates}: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
                 </p>
               )}
             </div>
@@ -481,10 +573,10 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
             {userType === 'labour' && (
               <>
                 <div>
-                  <Label htmlFor="skills" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Skills (comma separated) *</Label>
+                  <Label htmlFor="skills" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.skills}</Label>
                   <Input
                     id="skills"
-                    placeholder="e.g. Stitching, Pattern Making, Embroidery"
+                    placeholder={t.skillsPlaceholder}
                     value={formData.skills.join(', ')}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
@@ -494,31 +586,31 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                   />
                 </div>
                 <div>
-                  <Label htmlFor="rate" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Daily Rate (PKR) *</Label>
+                  <Label htmlFor="rate" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.dailyRate}</Label>
                   <Input
                     id="rate"
                     type="number"
-                    placeholder="e.g. 800"
+                    placeholder={t.dailyRatePlaceholder}
                     value={formData.rate}
                     onChange={(e) => handleInputChange('rate', e.target.value)}
                     className={`mt-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="experience" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Years of Experience</Label>
+                  <Label htmlFor="experience" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.experience}</Label>
                   <Input
                     id="experience"
-                    placeholder="e.g. 5 years"
+                    placeholder={t.experiencePlaceholder}
                     value={formData.experience}
                     onChange={(e) => handleInputChange('experience', e.target.value)}
                     className={`mt-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="workHistory" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Work History</Label>
+                  <Label htmlFor="workHistory" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.workHistory}</Label>
                   <Textarea
                     id="workHistory"
-                    placeholder="Describe your previous work experience..."
+                    placeholder={t.workHistoryPlaceholder}
                     value={formData.workHistory}
                     onChange={(e) => handleInputChange('workHistory', e.target.value)}
                     className={`mt-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
@@ -544,12 +636,12 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
 
             {/* Password */}
             <div>
-              <Label htmlFor="password" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Password *</Label>
+              <Label htmlFor="password" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.password}</Label>
               <div className="relative mt-1">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Minimum 8 characters"
+                  placeholder={t.passwordPlaceholder}
                   value={formData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   className={`pr-10 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
@@ -566,12 +658,12 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
 
             {/* Confirm Password */}
             <div>
-              <Label htmlFor="confirmPassword" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>Confirm Password *</Label>
+              <Label htmlFor="confirmPassword" className={`${isDarkMode ? 'text-gray-300' : 'text-[#1F2933]'}`}>{t.confirmPassword}</Label>
               <div className="relative mt-1">
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Re-enter password"
+                  placeholder={t.confirmPasswordPlaceholder}
                   value={formData.confirmPassword}
                   onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                   className={`pr-10 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
@@ -590,7 +682,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
               onClick={handleBasicSubmit}
               className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] mt-6"
             >
-              Continue to Verification
+              {t.continue}
             </Button>
           </CardContent>
         </Card>
@@ -608,7 +700,10 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
   // Step 2: Verification
   if (step === 'verification') {
     return (
-      <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center p-4">
+      <div
+        className="min-h-screen bg-[#F9FAFB] flex items-center justify-center p-4"
+        style={isUrdu ? { direction: 'rtl' } : {}}
+      >
         <Card className="w-full max-w-2xl shadow-xl bg-white border border-gray-200">
           <CardHeader className="bg-[#2563EB] text-white rounded-t-lg">
             <div className="flex items-center justify-between">
@@ -624,19 +719,38 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                 <div className="size-10 rounded-full bg-white/20 flex items-center justify-center">
                   <CreditCard className="size-6" />
                 </div>
-                <div>
-                  <CardTitle className="text-xl">Identity Verification</CardTitle>
-                  <p className="text-sm text-white/90">Step 2: Upload Documents</p>
+                <div style={isUrdu ? { fontFamily: "'Noto Nastaliq Urdu', serif", lineHeight: '2' } : {}}>
+                  <CardTitle className="text-xl">{t.uploadCNIC.replace(' *', '')}</CardTitle>
+                  <p className="text-sm text-white/90">{t.step2}</p>
                 </div>
               </div>
-              <div className="size-10" /> {/* Spacer */}
+              {userType === 'labour' ? (
+                <button
+                  type="button"
+                  onClick={() => setIsUrdu(!isUrdu)}
+                  aria-label={isUrdu ? 'Switch to English' : 'اردو میں دیکھیں'}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all"
+                  style={{
+                    background: isUrdu ? '#fff' : 'rgba(255,255,255,0.18)',
+                    color: isUrdu ? '#2563EB' : '#fff',
+                    border: '1.5px solid #fff',
+                    cursor: 'pointer',
+                    direction: 'ltr',
+                  }}
+                >
+                  <Languages className="size-4" />
+                  {isUrdu ? 'English' : 'اردو'}
+                </button>
+              ) : (
+                <div className="size-10" />
+              )}
             </div>
           </CardHeader>
           
           <CardContent className="p-6 space-y-6">
             {/* CNIC Upload */}
             <div>
-              <Label>Upload CNIC (Front & Back) *</Label>
+              <Label>{t.uploadCNIC}</Label>
               <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 <input
                   id="cnic-front-file"
@@ -657,7 +771,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                 {cnicFrontUploaded && cnicBackUploaded ? (
                   <div className="flex flex-col items-center gap-2">
                     <CheckCircle className="size-12 text-[#2563EB]" />
-                    <p className="text-sm text-gray-700">CNIC Uploaded Successfully</p>
+                    <p className="text-sm text-gray-700">{t.cnicUploaded}</p>
                     <p className="text-xs text-gray-500">{cnicFrontFile?.name}, {cnicBackFile?.name}</p>
                     <Button
                       type="button"
@@ -672,7 +786,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                       }}
                       className="mt-2"
                     >
-                      Upload Different Image
+                      {t.uploadDifferent}
                     </Button>
                   </div>
                 ) : (
@@ -682,11 +796,11 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                     </p>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border border-gray-200 p-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-800">CNIC front</p>
+                        <p className="text-sm font-medium text-gray-800">{t.cnicFront}</p>
                         {cnicFrontUploaded ? (
                           <p className="text-xs text-green-600 mt-1 truncate">{cnicFrontFile?.name}</p>
                         ) : (
-                          <p className="text-xs text-gray-500 mt-1">Not uploaded yet</p>
+                          <p className="text-xs text-gray-500 mt-1">{t.notUploaded}</p>
                         )}
                       </div>
                       <Button
@@ -695,16 +809,16 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                         className="bg-[#2563EB] hover:bg-[#1d4ed8] shrink-0"
                       >
                         <Upload className="size-4 mr-2" />
-                        {cnicFrontUploaded ? 'Change front' : 'Upload front'}
+                        {cnicFrontUploaded ? t.changeFront : t.uploadFront}
                       </Button>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border border-gray-200 p-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-800">CNIC back</p>
+                        <p className="text-sm font-medium text-gray-800">{t.cnicBack}</p>
                         {cnicBackUploaded ? (
                           <p className="text-xs text-green-600 mt-1 truncate">{cnicBackFile?.name}</p>
                         ) : (
-                          <p className="text-xs text-gray-500 mt-1">Not uploaded yet</p>
+                          <p className="text-xs text-gray-500 mt-1">{t.notUploaded}</p>
                         )}
                       </div>
                       <Button
@@ -713,7 +827,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                         className="bg-[#2563EB] hover:bg-[#1d4ed8] shrink-0"
                       >
                         <Upload className="size-4 mr-2" />
-                        {cnicBackUploaded ? 'Change back' : 'Upload back'}
+                        {cnicBackUploaded ? t.changeBack : t.uploadBack}
                       </Button>
                     </div>
                   </div>
@@ -723,7 +837,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
 
             {/* Selfie Capture */}
             <div>
-              <Label>Capture Selfie for Verification *</Label>
+              <Label>{t.selfie}</Label>
               <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 {selfieCaptured ? (
                   <div className="flex flex-col items-center gap-2">
@@ -731,7 +845,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                       <img src={selfieData} alt="Selfie" className="size-32 rounded-full object-cover" />
                       <CheckCircle className="absolute -top-1 -right-1 size-8 text-[#2563EB] bg-white rounded-full" />
                     </div>
-                    <p className="text-sm text-gray-700">Selfie Captured Successfully</p>
+                    <p className="text-sm text-gray-700">{t.selfieCaptured}</p>
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -741,19 +855,19 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                       }}
                       className="mt-2"
                     >
-                      Retake Selfie
+                      {t.retakeSelfie}
                     </Button>
                   </div>
                 ) : (
                   <div>
                     <Camera className="size-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 mb-2">Capture a clear selfie for face verification</p>
+                    <p className="text-sm text-gray-600 mb-2">{t.selfieDesc}</p>
                     <Button
                       onClick={() => setShowSelfieCapture(true)}
                       className="bg-[#2563EB] hover:bg-[#1d4ed8]"
                     >
                       <Camera className="size-4 mr-2" />
-                      Open Camera
+                      {t.openCamera}
                     </Button>
                   </div>
                 )}
@@ -763,8 +877,8 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
             {/* Video Upload (Optional for Labour) */}
             {userType === 'labour' && (
               <div>
-                <Label>Upload Skills Video</Label>
-                <p className="text-xs text-gray-500 mb-2">Show your skills in action (max 30 seconds)</p>
+                <Label>{t.skillsVideo}</Label>
+                <p className="text-xs text-gray-500 mb-2">{t.videoDesc}</p>
                 <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   <input
                     ref={videoInputRef}
@@ -776,7 +890,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                   {videoUploaded ? (
                     <div className="flex flex-col items-center gap-2">
                       <CheckCircle className="size-12 text-[#2563EB]" />
-                      <p className="text-sm text-gray-700">Video Uploaded Successfully</p>
+                      <p className="text-sm text-gray-700">{t.videoUploaded}</p>
                       <p className="text-xs text-gray-500">{formData.videoProfile?.name}</p>
                       <Button
                         variant="outline"
@@ -786,20 +900,20 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                         }}
                         className="mt-2"
                       >
-                        Upload Different Video
+                        {t.uploadDiffVideo}
                       </Button>
                     </div>
                   ) : (
                     <div>
                       <Video className="size-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600 mb-2">Upload a video showcasing your skills</p>
+                      <p className="text-sm text-gray-600 mb-2">{t.videoDesc}</p>
                       <Button
                         onClick={() => videoInputRef.current?.click()}
                         variant="outline"
                         className="border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
                       >
                         <Video className="size-4 mr-2" />
-                        Select Video
+                        {t.selectVideo}
                       </Button>
                     </div>
                   )}
@@ -880,7 +994,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
             <div>
               <Label className="flex items-center gap-2 mb-2">
                 <ShieldCheck className="size-4 text-[#2563EB]" />
-                Platform Policies
+                {t.policies}
               </Label>
               <div className="border border-gray-300 rounded-lg overflow-hidden">
                 <div className="h-52 overflow-y-scroll p-4 bg-gray-50 space-y-3">
@@ -899,7 +1013,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
                       onChange={(e) => setPoliciesAccepted(e.target.checked)}
                       className="size-4 accent-[#2563EB] cursor-pointer"
                     />
-                    <span className="text-sm font-medium text-[#1F2933]">I Agree to Policies</span>
+                    <span className="text-sm font-medium text-[#1F2933]">{t.agreePolicy}</span>
                   </label>
                 </div>
               </div>
@@ -911,7 +1025,7 @@ export function CompleteEnhancedRegistrationForm({ userType, onComplete, onBack 
               disabled={!cnicFrontUploaded || !cnicBackUploaded || !selfieCaptured || !isVerificationLocationReady || !policiesAccepted}
               className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] mt-6 disabled:opacity-50"
             >
-              Submit for Verification
+              {t.submit}
             </Button>
           </CardContent>
         </Card>

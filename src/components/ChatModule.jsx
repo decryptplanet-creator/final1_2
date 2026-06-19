@@ -3,8 +3,7 @@ import axios from 'axios';
 import io from 'socket.io-client';
 import { Send, X, Loader2, AlertTriangle, Lock, Paperclip, Camera, Image, FileText, Phone, Video, MoreVertical, Smile } from 'lucide-react';
 
-// FIX: Port 5001 to 5003
-const CHAT_SERVER_URL = import.meta.env.VITE_CHAT_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:5003';
+const CHAT_SERVER_URL = import.meta.env.VITE_CHAT_API_URL || 'http://localhost:5001';
 const API_URL = `${CHAT_SERVER_URL}/api/messages`;
 
 const authHeaders = () => {
@@ -12,7 +11,7 @@ const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export default function ChatModule({ currentUserId, receiverId, receiverName = 'Manufacturer', orderId, onClose }) {
+export default function ChatModule({ currentUserId, currentUserName = '', receiverId, receiverName = 'Manufacturer', orderId, onClose }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -35,32 +34,47 @@ export default function ChatModule({ currentUserId, receiverId, receiverName = '
     );
 
   const addIfNew = (incoming) => {
-    if (!isForThisChat(incoming)) return;
+    // ✅ FIX: Server { message: msg } format handle karo
+    const msg = incoming?.message || incoming;
+    if (!isForThisChat(msg)) return;
     setMessages((prev) => {
       const dup = prev.some((m) =>
-        (incoming._id && m._id === incoming._id) ||
-        (m.sender === incoming.sender && m.message === incoming.message && m.createdAt === incoming.createdAt)
+        (msg._id && m._id === msg._id) ||
+        (m.sender === msg.sender && m.message === msg.message && m.createdAt === msg.createdAt)
       );
-      return dup ? prev : [...prev, incoming];
+      return dup ? prev : [...prev, msg];
     });
   };
 
   useEffect(() => {
-    const socket = io(CHAT_SERVER_URL);
+    const socket = io(CHAT_SERVER_URL, {
+      transports: ['websocket', 'polling'], // ✅ Connection stable karo
+    });
     socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('✅ Socket connected:', socket.id);
+      socket.emit('join_chat', orderId);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.log('❌ Socket connection error:', err.message);
+    });
 
     (async () => {
       try {
         const { data } = await axios.get(`${API_URL}/${orderId}`, { headers: authHeaders() });
         setMessages(Array.isArray(data) ? data : []);
       } catch (err) {
-        if (err.response?.status === 403) setIsLocked(true);
+        if (err.response?.status === 403) { setIsLocked(true); }
+        // ✅ Fallback: load from localStorage if backend fails
+        const local = JSON.parse(localStorage.getItem(`chat_messages_${orderId}`) || '[]');
+        setMessages(local);
       } finally {
         setLoading(false);
       }
     })();
 
-    socket.emit('join_chat', orderId);
     socket.on('receive_message', addIfNew);
 
     return () => {
@@ -75,15 +89,40 @@ export default function ChatModule({ currentUserId, receiverId, receiverName = '
   }, [messages]);
 
   const sendViaREST = async (messageText) => {
-    const payload = { receiver: receiverId, orderId, message: messageText };
+    const payload = {
+      sender: currentUserId,
+      receiver: receiverId,
+      orderId,
+      message: messageText,
+    };
+
+    // ✅ Save to localStorage for cross-user visibility (fallback when backend is down)
+    const lsKey = `chat_messages_${orderId}`;
+    const localMsg = { sender: currentUserId, receiver: receiverId, orderId, message: messageText, createdAt: new Date().toISOString(), _id: `local_${Date.now()}` };
+    const existing = JSON.parse(localStorage.getItem(lsKey) || '[]');
+    localStorage.setItem(lsKey, JSON.stringify([...existing, localMsg]));
+
+    // ✅ Also save a per-user inbox entry so ChatInbox can show this conversation
+    const inboxKey = `chat_inbox_${receiverId}`;
+    const inboxEntry = { orderId, with: { id: currentUserId, name: currentUserName || currentUserId }, lastMessage: messageText, updatedAt: new Date().toISOString() };
+    const inbox = JSON.parse(localStorage.getItem(inboxKey) || '[]');
+    const idx = inbox.findIndex(c => c.orderId === orderId);
+    if (idx >= 0) inbox[idx] = inboxEntry; else inbox.unshift(inboxEntry);
+    localStorage.setItem(inboxKey, JSON.stringify(inbox));
+
     const { data } = await axios.post(API_URL, payload, { headers: authHeaders() });
-    const saved = data.message;
+
+    // ✅ FIX: Server { message: msg } format
+    const saved = data?.message || data;
     addIfNew(saved);
+
+    // ✅ notify_message emit karo dusre user ko
     socketRef.current?.emit('notify_message', {
       ...saved,
       sender: norm(saved.sender ?? currentUserId),
       receiver: norm(saved.receiver ?? receiverId),
     });
+
     return data;
   };
 
@@ -207,7 +246,7 @@ export default function ChatModule({ currentUserId, receiverId, receiverName = '
                         )}
                         <div className={`flex items-center gap-1 justify-end mt-0.5 ${isImage ? 'px-2 pb-1' : ''}`}>
                           <span className="text-xs" style={{ color: isMe ? '#BFDBFE' : '#94A3B8', fontSize: '11px' }}>{formatTime(m.createdAt)}</span>
-                          {isMe && <span style={{ color: '#BFDBFE', fontSize: '13px' }}>checkcheck</span>}
+                          {isMe && <span style={{ color: '#BFDBFE', fontSize: '13px' }}>✓✓</span>}
                         </div>
                       </div>
                     </div>
