@@ -26,15 +26,9 @@ export default function ChatModule({ currentUserId, currentUserName = '', receiv
 
   const norm = (v) => String(v || '');
 
-  const isForThisChat = (msg) =>
-    norm(msg.orderId) === norm(orderId) &&
-    (
-      (norm(msg.sender) === norm(currentUserId) && norm(msg.receiver) === norm(receiverId)) ||
-      (norm(msg.sender) === norm(receiverId) && norm(msg.receiver) === norm(currentUserId))
-    );
+  const isForThisChat = (msg) => norm(msg.orderId) === norm(orderId);
 
   const addIfNew = (incoming) => {
-    // ✅ FIX: Server { message: msg } format handle karo
     const msg = incoming?.message || incoming;
     if (!isForThisChat(msg)) return;
     setMessages((prev) => {
@@ -46,34 +40,46 @@ export default function ChatModule({ currentUserId, currentUserName = '', receiv
     });
   };
 
+  const loadMessages = async () => {
+    try {
+      const { data } = await axios.get(`${API_URL}/${orderId}`, { headers: authHeaders() });
+      setMessages(Array.isArray(data) ? data : []);
+    } catch (err) {
+      if (err.response?.status === 403) {
+        const errData = err.response.data;
+        if (errData?.locked) setIsLocked(true);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    const token = localStorage.getItem('token');
     const socket = io(CHAT_SERVER_URL, {
-      transports: ['websocket', 'polling'], // ✅ Connection stable karo
+      transports: ['websocket', 'polling'],
+      auth: { token },
     });
     socketRef.current = socket;
 
     socket.on('connect', () => {
       console.log('✅ Socket connected:', socket.id);
       socket.emit('join_chat', orderId);
+      if (currentUserId) socket.emit('register_user', currentUserId);
     });
 
     socket.on('connect_error', (err) => {
       console.log('❌ Socket connection error:', err.message);
     });
 
-    (async () => {
-      try {
-        const { data } = await axios.get(`${API_URL}/${orderId}`, { headers: authHeaders() });
-        setMessages(Array.isArray(data) ? data : []);
-      } catch (err) {
-        if (err.response?.status === 403) { setIsLocked(true); }
-        // ✅ Fallback: load from localStorage if backend fails
-        const local = JSON.parse(localStorage.getItem(`chat_messages_${orderId}`) || '[]');
-        setMessages(local);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    // On reconnect, reload messages from server
+    socket.on('reconnect', () => {
+      socket.emit('join_chat', orderId);
+      if (currentUserId) socket.emit('register_user', currentUserId);
+      loadMessages();
+    });
+
+    loadMessages();
 
     socket.on('receive_message', addIfNew);
 
@@ -91,36 +97,23 @@ export default function ChatModule({ currentUserId, currentUserName = '', receiv
   const sendViaREST = async (messageText) => {
     const payload = {
       sender: currentUserId,
+      senderName: currentUserName || currentUserId,
       receiver: receiverId,
+      receiverName,
       orderId,
       message: messageText,
     };
 
-    // ✅ Save to localStorage for cross-user visibility (fallback when backend is down)
-    const lsKey = `chat_messages_${orderId}`;
-    const localMsg = { sender: currentUserId, receiver: receiverId, orderId, message: messageText, createdAt: new Date().toISOString(), _id: `local_${Date.now()}` };
-    const existing = JSON.parse(localStorage.getItem(lsKey) || '[]');
-    localStorage.setItem(lsKey, JSON.stringify([...existing, localMsg]));
-
-    // ✅ Also save a per-user inbox entry so ChatInbox can show this conversation
-    const inboxKey = `chat_inbox_${receiverId}`;
-    const inboxEntry = { orderId, with: { id: currentUserId, name: currentUserName || currentUserId }, lastMessage: messageText, updatedAt: new Date().toISOString() };
-    const inbox = JSON.parse(localStorage.getItem(inboxKey) || '[]');
-    const idx = inbox.findIndex(c => c.orderId === orderId);
-    if (idx >= 0) inbox[idx] = inboxEntry; else inbox.unshift(inboxEntry);
-    localStorage.setItem(inboxKey, JSON.stringify(inbox));
-
     const { data } = await axios.post(API_URL, payload, { headers: authHeaders() });
 
-    // ✅ FIX: Server { message: msg } format
     const saved = data?.message || data;
     addIfNew(saved);
 
-    // ✅ notify_message emit karo dusre user ko
     socketRef.current?.emit('notify_message', {
       ...saved,
       sender: norm(saved.sender ?? currentUserId),
       receiver: norm(saved.receiver ?? receiverId),
+      senderName: currentUserName || currentUserId,
     });
 
     return data;

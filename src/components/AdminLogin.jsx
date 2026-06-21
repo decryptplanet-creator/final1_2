@@ -13,15 +13,33 @@ export function AdminLogin({ onLogin, onBack }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate authentication
-    setTimeout(() => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5003'}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (res.ok && (data.user?.role || '').toLowerCase() === 'admin') {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify({ ...data.user, type: 'admin', role: 'admin' }));
+        onLogin();
+      } else {
+        alert(data.message || 'Admin credentials galat hain');
+      }
+    } catch {
+      // fallback: allow demo credentials offline
+      if (email === 'admin@skillora.com' && password === 'admin123') {
+        onLogin();
+      } else {
+        alert('Server se connect nahi ho saka. Demo: admin@skillora.com / admin123');
+      }
+    } finally {
       setIsLoading(false);
-      onLogin();
-    }, 1000);
+    }
   };
 
   return (

@@ -1,141 +1,125 @@
-import { X, Bell, Package, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Bell, Package, MessageSquare, CheckCircle, AlertCircle, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { useTheme } from '../contexts/ThemeContext';
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+const getToken = () => localStorage.getItem('token') || '';
+
 export function NotificationsModal({ onClose }) {
   const { isDarkMode } = useTheme();
-  
-  const notifications = [
-    {
-      id: '1',
-      type: 'order',
-      title: 'New Order Received',
-      message: 'Cotton Shirts Manufacturing - 500 units',
-      time: '5 min ago',
-      read: false,
-    },
-    {
-      id: '2',
-      type: 'message',
-      title: 'New Message',
-      message: 'ABC Textiles sent you a message',
-      time: '1 hour ago',
-      read: false,
-    },
-    {
-      id: '3',
-      type: 'success',
-      title: 'Payment Released',
-      message: 'PKR 75,000 has been released to your account',
-      time: '2 hours ago',
-      read: true,
-    },
-    {
-      id: '4',
-      type: 'alert',
-      title: 'Deadline Approaching',
-      message: 'Leather Bags Production - 2 days remaining',
-      time: '5 hours ago',
-      read: true,
-    },
-  ];
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchNotifs = async () => {
+      const token = getToken();
+      if (!token) { setLoading(false); return; }
+
+      // Admin = /api/admin/notifications, others = /api/admin/my-notifications
+      let userRole = 'user';
+      try { userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'user'; } catch {}
+      const endpoint = userRole === 'admin'
+        ? `${API}/api/admin/notifications`
+        : `${API}/api/admin/my-notifications`;
+
+      try {
+        const res = await fetch(endpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) setNotifications(await res.json());
+      } catch {}
+      setLoading(false);
+    };
+    fetchNotifs();
+  }, []);
+
+  const markRead = async (id) => {
+    const token = getToken();
+    if (!token) return;
+    let userRole = 'user';
+    try { userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'user'; } catch {}
+    const endpoint = userRole === 'admin'
+      ? `${API}/api/admin/notifications/${id}/read`
+      : `${API}/api/admin/my-notifications/${id}/read`;
+    await fetch(endpoint, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+    setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+  };
 
   const getIcon = (type) => {
     switch (type) {
-      case 'order':
-        return <Package className="size-5 text-[#2563EB]" />;
-      case 'message':
-        return <MessageSquare className="size-5 text-[#2563EB]" />;
-      case 'success':
-        return <CheckCircle className="size-5 text-green-500" />;
-      case 'alert':
-        return <AlertCircle className="size-5 text-yellow-500" />;
-      default:
-        return <Bell className="size-5 text-gray-500" />;
+      case 'registration':   return <Package className="size-5 text-[#2563EB]" />;
+      case 'labour_apply':   return <Users className="size-5 text-green-500" />;
+      case 'document':       return <CheckCircle className="size-5 text-yellow-500" />;
+      case 'video':          return <AlertCircle className="size-5 text-purple-500" />;
+      default:               return <Bell className="size-5 text-gray-500" />;
     }
+  };
+
+  const timeAgo = (date) => {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins} min ago`;
+    if (mins < 1440) return `${Math.floor(mins/60)} hr ago`;
+    return `${Math.floor(mins/1440)} days ago`;
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className={`w-full max-w-2xl rounded-lg shadow-xl ${
-        isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
-      }`}>
-        {/* Header */}
-        <div className={`flex items-center justify-between p-6 border-b ${
-          isDarkMode ? 'border-gray-800' : 'border-gray-200'
-        }`}>
+      <div className={`w-full max-w-2xl rounded-lg shadow-xl ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+        <div className={`flex items-center justify-between p-6 border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
           <div className="flex items-center gap-3">
             <Bell className="size-6 text-[#2563EB]" />
             <h2 className="text-2xl">Notifications</h2>
+            {notifications.filter(n => !n.isRead).length > 0 && (
+              <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                {notifications.filter(n => !n.isRead).length}
+              </span>
+            )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
             <X className="size-5" />
           </button>
         </div>
 
-        {/* Notifications List */}
-        <div className="p-6 max-h-[600px] overflow-y-auto">
+        <div className="p-6 max-h-[500px] overflow-y-auto">
+          {loading && <p className="text-center text-gray-400 py-8">Loading...</p>}
+
+          {!loading && notifications.length === 0 && (
+            <p className="text-center text-gray-400 py-8">Koi notification nahi hai</p>
+          )}
+
           <div className="space-y-3">
-            {notifications.map((notification) => (
+            {notifications.map((n) => (
               <div
-                key={notification.id}
-                className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                  isDarkMode 
-                    ? notification.read 
-                      ? 'bg-gray-900 border-gray-800 hover:bg-gray-800' 
-                      : 'bg-gray-800 border-gray-700 hover:bg-gray-750'
-                    : notification.read
-                      ? 'bg-white border-gray-200 hover:bg-gray-50'
-                      : 'bg-[#2563EB]/5 border-[#2563EB]/20 hover:bg-[#2563EB]/10'
+                key={n._id || n.id}
+                onClick={() => markRead(n._id || n.id)}
+                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                  isDarkMode
+                    ? n.isRead ? 'bg-gray-900 border-gray-800' : 'bg-gray-800 border-gray-700'
+                    : n.isRead ? 'bg-white border-gray-200' : 'bg-[#2563EB]/5 border-[#2563EB]/20'
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="mt-1">{getIcon(notification.type)}</div>
+                  <div className="mt-1">{getIcon(n.type)}</div>
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-1">
-                      <h3 className={`font-medium ${!notification.read && 'text-[#2563EB]'}`}>
-                        {notification.title}
-                      </h3>
-                      <span className={`text-xs ${
-                        isDarkMode ? 'text-gray-500' : 'text-gray-600'
-                      }`}>
-                        {notification.time}
-                      </span>
+                      <h3 className={`font-medium text-sm ${!n.isRead ? 'text-[#2563EB]' : ''}`}>{n.title}</h3>
+                      <span className="text-xs text-gray-500 ml-2 shrink-0">{timeAgo(n.createdAt)}</span>
                     </div>
-                    <p className={`text-sm ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
-                      {notification.message}
-                    </p>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{n.message}</p>
                   </div>
-                  {!notification.read && (
-                    <div className="size-2 rounded-full bg-[#2563EB] mt-2"></div>
-                  )}
+                  {!n.isRead && <div className="size-2 rounded-full bg-[#2563EB] mt-2 shrink-0" />}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className={`p-4 border-t ${
-          isDarkMode ? 'border-gray-800' : 'border-gray-200'
-        }`}>
-          <Button 
-            onClick={onClose} 
-            className="w-full bg-[#2563EB] hover:bg-[#1d4ed8]"
-          >
-            Close
-          </Button>
+        <div className={`p-4 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+          <Button onClick={onClose} className="w-full bg-[#2563EB] hover:bg-[#1d4ed8]">Close</Button>
         </div>
       </div>
     </div>
   );
 }
-
-/*User ko app ke notifications (orders, messages, alerts, payments) list form me show karta hai.
-
-Yeh web-based React component hai, lekin hybrid/mobile apps me bhi use ho sakta hai (dono ke liye). */

@@ -1,4 +1,4 @@
-import { ChatInbox } from './ChatInbox';
+import { ChatInbox, useChatNotifications } from './ChatInbox';
 import { NotificationCenter } from './NotificationCenter';
 import { ToastContainer, useToast } from './Alerts&Notification';
 import { useState, useEffect, useCallback } from 'react';
@@ -61,8 +61,10 @@ export function ClientDashboard({ user, onLogout }) {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showOrderList, setShowOrderList] = useState(null);
   const [showReview, setShowReview] = useState(null);
+  const [reviewedIds, setReviewedIds] = useState(new Set());
   const [releasingId, setReleasingId] = useState(null);
 
+  const { unread: chatUnread, clearUnread } = useChatNotifications(user?.id || user?._id);
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5003';
   const getAuthHeaders = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` });
 
@@ -100,7 +102,7 @@ export function ClientDashboard({ user, onLogout }) {
       alert(`70% (PKR ${escrow.remainingAmount}) manufacturer ko release ho gaya!`);
       fetchEscrow(order.id);
       if (order.manufacturer?.id) {
-        setShowReview({ manufacturerId: order.manufacturer.id, manufacturerName: order.manufacturer.name });
+        setShowReview({ orderId: order.id, manufacturerId: order.manufacturer.id, manufacturerName: order.manufacturer.name });
       }
     } catch (err) { alert('Error: ' + err.message); }
     finally { setReleasingId(null); }
@@ -126,7 +128,8 @@ export function ClientDashboard({ user, onLogout }) {
         escrowStatus: { total: o.budget, deposited: 0, released: 0 },
       }));
       setOrders(normalized);
-      normalized.forEach(o => fetchEscrow(o.id));
+      // fetchEscrow calls disabled — backend escrow route not available yet
+      // normalized.forEach(o => fetchEscrow(o.id));
     } catch (_) {}
   }, []); // eslint-disable-line
 
@@ -202,8 +205,9 @@ export function ClientDashboard({ user, onLogout }) {
                 <Shield className="size-4 mr-2" /> Open Escrow
               </Button>
               {/* ✅ MessageSquare opens Inbox now */}
-              <Button variant="ghost" size="icon" onClick={() => setShowInbox(true)} title="Messages" className="text-[#2563EB] hover:bg-[#2563EB]/10">
+              <Button variant="ghost" size="icon" onClick={() => { setShowInbox(true); clearUnread(); }} title="Messages" className="text-[#2563EB] hover:bg-[#2563EB]/10 relative">
                 <MessageSquare className="size-5" />
+                {chatUnread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{chatUnread}</span>}
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10"><Settings className="size-5" /></Button>
               <Button variant="ghost" onClick={() => setShowProfile(true)} className={`${isDarkMode ? 'text-[#F9FAFB] hover:bg-gray-700' : 'text-[#1F2933] hover:bg-gray-100'}`}>Profile</Button>
@@ -327,7 +331,9 @@ export function ClientDashboard({ user, onLogout }) {
                     </Button>
                   )}
                   {escrowMap[order.id]?.remainingReleased && order.manufacturer?.id && (
-                    <Button className="bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => setShowReview({ manufacturerId: order.manufacturer.id, manufacturerName: order.manufacturer.name })}>Leave Review</Button>
+                    reviewedIds.has(order.id)
+                      ? <Badge className="bg-green-500/10 text-green-600 border-green-500 px-3 py-1 text-xs">✅ Reviewed</Badge>
+                      : <Button className="bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => setShowReview({ orderId: order.id, manufacturerId: order.manufacturer.id, manufacturerName: order.manufacturer.name })}>Leave Review</Button>
                   )}
                 </div>
               </CardContent>
@@ -340,14 +346,14 @@ export function ClientDashboard({ user, onLogout }) {
       {selectedOrder && <OrderDetailsModal order={selectedOrder} userType="client" onClose={() => setSelectedOrder(null)} onUpdate={(updates) => { handleUpdateOrder(selectedOrder.id, updates); setSelectedOrder((current) => ({ ...current, ...updates })); }} />}
       {showSearch && <SearchModal onClose={() => setShowSearch(false)} userType="client" currentUserId={user?.id} />}
       {showProfile && <ProfileModal user={selectedProfileUser || user} onClose={() => { setShowProfile(false); setSelectedProfileUser(null); }} onChatClick={() => { setShowProfile(false); openChatWithProfile(selectedProfileUser || user); }} />}
-      {showChat && <ChatModule currentUserId={getCurrentUserId()} receiverId={selectedChat?.receiverId} receiverName={selectedChat?.receiverName} orderId={selectedChat?.orderId} onClose={() => { setShowChat(false); setSelectedChat(null); }} />}
+      {showChat && <ChatModule currentUserId={getCurrentUserId()} currentUserName={user?.name || currentUser?.name || 'Client'} receiverId={selectedChat?.receiverId} receiverName={selectedChat?.receiverName} orderId={selectedChat?.orderId} onClose={() => { setShowChat(false); setSelectedChat(null); }} />}
       {showNotifications && <NotificationsModal onClose={() => setShowNotifications(false)} />}
       {showEmail && <EmailModal onClose={() => setShowEmail(false)} />}
       {showEscrowDemo && <EscrowDemoPage onClose={() => setShowEscrowDemo(false)} />}
       {showEscrowPage && selectedOrder && <EscrowPage orderData={selectedOrder} onClose={() => setShowEscrowPage(false)} onPaymentSuccess={handleEscrowPaymentSuccess} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} userType="client" />}
       {showViewAll && <ViewAllModal type={showViewAll} onClose={() => setShowViewAll(null)} activeFilter={activeFilter} onFilterChange={setActiveFilter} onProfileClick={(i) => { setSelectedProfileUser(i); setShowProfile(true); }} currentUserId={user?.id} />}
-      {showReview && <ReviewModal revieweeId={showReview.manufacturerId} revieweeName={showReview.manufacturerName} onClose={() => setShowReview(null)} />}
+      {showReview && <ReviewModal revieweeId={showReview.manufacturerId} revieweeName={showReview.manufacturerName} onClose={() => setShowReview(null)} onReviewed={() => { setReviewedIds(prev => new Set([...prev, showReview.orderId])); setShowReview(null); }} />}
       {/* ✅ ChatInbox Modal */}
       {showInbox && (
         <ChatInbox

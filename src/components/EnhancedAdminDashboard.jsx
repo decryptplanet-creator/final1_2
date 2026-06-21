@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/labelstatus';
@@ -10,10 +10,22 @@ import {
   LogOut, Moon, Sun, X, Bell, Clock, MapPin, Download,
   UserCheck, UserX, MessageSquare, Calendar, Filter,
   Eye, Ban, RefreshCw, FileCheck, AlertCircle, ChevronRight,
-  Lock, Unlock, Send, Upload
+  Lock, Unlock, Send, Upload, PauseCircle
 } from 'lucide-react';
 import { NotificationCenter } from './NotificationCenter';
 import { useTheme } from '../contexts/ThemeContext';
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+
+function getAdminToken() {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  try {
+    const decoded = JSON.parse(atob(token));
+    if (decoded && decoded.id) return token;
+  } catch {}
+  return token;
+}
 
 export function EnhancedAdminDashboard({ onLogout }) {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -23,6 +35,101 @@ export function EnhancedAdminDashboard({ onLogout }) {
   const [showConfirmation, setShowConfirmation] = useState(null);
   const [isResolvingDispute, setIsResolvingDispute] = useState(false);
   const [adminMessageDraft, setAdminMessageDraft] = useState('');
+
+  // ── Real API state ──────────────────────────────────────────────────────────
+  const [notifications, setNotifications] = useState([]);
+  const [apiUsers, setApiUsers] = useState([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
+  const [actionMsg, setActionMsg] = useState('');
+
+  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken()}` };
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/admin/notifications`, { headers: authHeaders });
+      if (res.ok) setNotifications(await res.json());
+    } catch {}
+  }, []);
+
+  const fetchDisputes = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/dispute/`, { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setDisputes(data.map(d => ({
+            id: d._id,
+            orderId: d.orderId,
+            client: d.raisedBy || 'Unknown',
+            manufacturer: '',
+            amount: 0,
+            reason: d.reason,
+            status: d.status,
+            referenceId: d._id,
+            aiAnalysis: { recommendation: '', confidence: d.aiConfidence, findings: [`AI Status: ${d.aiStatus}`] },
+            timeline: [{ label: 'Dispute raised', date: d.createdAt || new Date().toISOString(), status: 'completed' }],
+            adminMessages: [],
+          })));
+        }
+      }
+    } catch {}
+  }, []);
+
+  const fetchUsers = useCallback(async () => {
+    setApiLoading(true);
+    setApiError('');
+    try {
+      const res = await fetch(`${API}/api/admin/users`, { headers: authHeaders });
+      if (res.ok) {
+        const data = await res.json();
+        setApiUsers(data.filter(u => u.role !== 'admin'));
+      } else {
+        setApiError('Users load nahi ho sake');
+      }
+    } catch {
+      setApiError('Server se connect nahi ho saka');
+    } finally {
+      setApiLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    fetchUsers();
+    fetchDisputes();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications, fetchUsers, fetchDisputes]);
+
+  const showMsg = (msg) => { setActionMsg(msg); setTimeout(() => setActionMsg(''), 3000); };
+
+  const adminAction = async (userId, action, body = {}) => {
+    const res = await fetch(`${API}/api/admin/users/${userId}/${action}`, {
+      method: 'PUT',
+      headers: authHeaders,
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    // update local state
+    setApiUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data.user } : u));
+    if (selectedUser?.id === userId) setSelectedUser(prev => ({ ...prev, ...data.user }));
+    await fetchNotifications();
+    return data;
+  };
+
+  const markRead = async (id) => {
+    await fetch(`${API}/api/admin/notifications/${id}/read`, { method: 'PUT', headers: authHeaders });
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
+
+  const markAllRead = async () => {
+    await fetch(`${API}/api/admin/notifications/read-all`, { method: 'PUT', headers: authHeaders });
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   // Mock Data
   const [managedUsers, setManagedUsers] = useState([
@@ -82,9 +189,22 @@ export function EnhancedAdminDashboard({ onLogout }) {
     },
   ]);
 
+  // Use real API users when available, fall back to mock
+  const displayUsers = apiUsers.length > 0 ? apiUsers.map(u => ({
+    ...u,
+    type: u.role,
+    location: u.city || '',
+    submittedDate: u.createdAt ? u.createdAt.split('T')[0] : '',
+    aiStatus: u.verificationStatus === 'rejected' ? 'flagged' : 'uncertain',
+    trustScore: 70,
+    documents: { cnic: !!u.cnicFront || !!u.hasAffidavit, affidavit: !!u.hasAffidavit, video: !!u.hasVideo },
+    accountStatus: u.status || 'active',
+    activities: [],
+  })) : managedUsers;
+
   let stats = {
     totalTransactions: 2458000,
-    pendingVerifications: managedUsers.filter((user) => user.verificationStatus === 'pending').length,
+    pendingVerifications: displayUsers.filter((user) => user.verificationStatus === 'pending').length,
     activeDisputes: 0,
     ppcViolations: 3,
   };
@@ -266,12 +386,14 @@ export function EnhancedAdminDashboard({ onLogout }) {
     setShowConfirmation({
       show: true,
       action: 'Approve User',
-      message: `Are you sure you want to approve ${user.name}? This will grant them full platform access.`,
-      onConfirm: () => {
-        updateManagedUser(user.id, { verificationStatus: 'verified' }, 'Account verified by admin');
-        addSystemLog('User Verified', `Verified ${user.type}: ${user.name}`);
+      message: `Are you sure you want to approve ${user.name}?`,
+      onConfirm: async () => {
         setShowConfirmation(null);
-        alert(`${user.name} has been approved and notified via email.`);
+        try {
+          await adminAction(user.id, 'approve');
+          addSystemLog('User Verified', `Verified ${user.type || user.role}: ${user.name}`);
+          showMsg(`✅ ${user.name} approved successfully.`);
+        } catch { showMsg('❌ Approve fail ho gaya, dobara try karein.'); }
       },
     });
   };
@@ -280,42 +402,55 @@ export function EnhancedAdminDashboard({ onLogout }) {
     setShowConfirmation({
       show: true,
       action: 'Reject User',
-      message: `Are you sure you want to reject ${user.name}? They will be notified and can reapply.`,
-      onConfirm: () => {
-        updateManagedUser(user.id, { verificationStatus: 'rejected' }, 'Verification rejected by admin');
-        addSystemLog('User Rejected', `Verification rejected for ${user.name}`);
+      message: `Are you sure you want to reject ${user.name}?`,
+      onConfirm: async () => {
         setShowConfirmation(null);
-        alert(`${user.name} has been rejected. Rejection notice sent.`);
+        try {
+          await adminAction(user.id, 'reject', { reason: 'Documents insufficient' });
+          addSystemLog('User Rejected', `Verification rejected for ${user.name}`);
+          showMsg(`❌ ${user.name} reject ho gaya.`);
+        } catch { showMsg('❌ Reject fail ho gaya.'); }
       },
     });
   };
 
   const handleRequestInfo = (user) => {
-    updateManagedUser(user.id, {}, 'Admin requested additional verification information');
     addSystemLog('Information Requested', `Additional documents requested from ${user.name}`);
-    alert(`Information request sent to ${user.name}. They will receive an email with requirements.`);
+    showMsg(`ℹ️ Info request logged for ${user.name}.`);
   };
 
   const handleAccountAccess = (user) => {
-    const isBlocked = user.accountStatus === 'blocked';
-    const nextStatus = isBlocked ? 'active' : 'blocked';
-    const action = isBlocked ? 'Unblock User' : 'Block User';
+    const currentStatus = user.accountStatus || user.status || 'active';
+    const isBlocked = currentStatus === 'blocked';
+    const action = isBlocked ? 'unblock' : 'block';
+    const label = isBlocked ? 'Unblock User' : 'Block User';
     setShowConfirmation({
       show: true,
-      action,
-      message: `${action} account access for ${user.name}? This action will be recorded in system logs.`,
-      onConfirm: () => {
-        updateManagedUser(
-          user.id,
-          { accountStatus: nextStatus },
-          `Account ${isBlocked ? 'unblocked' : 'blocked'} by admin`
-        );
-        addSystemLog(
-          isBlocked ? 'User Unblocked' : 'User Blocked',
-          `${user.name} account access ${isBlocked ? 'restored' : 'suspended'} by admin`,
-          isBlocked ? 'verification' : 'ppc'
-        );
+      action: label,
+      message: `${label} account for ${user.name}?`,
+      onConfirm: async () => {
         setShowConfirmation(null);
+        try {
+          await adminAction(user.id, action);
+          addSystemLog(label, `${user.name} account ${action}ed by admin`, isBlocked ? 'verification' : 'ppc');
+          showMsg(`✅ ${user.name} ${action}ed.`);
+        } catch { showMsg(`❌ ${label} fail ho gaya.`); }
+      },
+    });
+  };
+
+  const handleSuspendUser = (user) => {
+    setShowConfirmation({
+      show: true,
+      action: 'Suspend User',
+      message: `Suspend account for ${user.name}?`,
+      onConfirm: async () => {
+        setShowConfirmation(null);
+        try {
+          await adminAction(user.id, 'suspend');
+          addSystemLog('User Suspended', `${user.name} suspended by admin`, 'ppc');
+          showMsg(`⏸️ ${user.name} suspended.`);
+        } catch { showMsg('❌ Suspend fail ho gaya.'); }
       },
     });
   };
@@ -331,8 +466,16 @@ export function EnhancedAdminDashboard({ onLogout }) {
       show: true,
       action: action === 'refund' ? 'Refund to Client' : action === 'release' ? 'Release Payment' : 'Suspend Account',
       message: messages[action],
-      onConfirm: () => {
+      onConfirm: async () => {
         setIsResolvingDispute(true);
+        try {
+          // Call real API
+          await fetch(`${API}/api/dispute/resolve/${dispute.id}`, {
+            method: 'PUT',
+            headers: authHeaders,
+            body: JSON.stringify({ decision: action }),
+          });
+        } catch {}
         const updatedStatus = action === 'suspend' ? 'ppc-enforced' : 'resolved';
         const outcome = {
           refund: `Refund approved for ${dispute.client}.`,
@@ -438,6 +581,22 @@ export function EnhancedAdminDashboard({ onLogout }) {
         <aside className={`w-64 min-h-screen border-r ${isDarkMode ? 'bg-[#2A3642] border-gray-800' : 'bg-white border-gray-200'} p-4`}>
           <nav className="space-y-2">
             <button
+              onClick={() => setActiveView('notifications')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                activeView === 'notifications'
+                  ? 'bg-[#2563EB] text-white'
+                  : isDarkMode
+                  ? 'text-gray-300 hover:bg-gray-800'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Bell className="size-5" />
+              <span>Notifications</span>
+              {unreadCount > 0 && (
+                <Badge className="ml-auto bg-red-600 text-white">{unreadCount}</Badge>
+              )}
+            </button>
+            <button
               onClick={() => setActiveView('dashboard')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 activeView === 'dashboard'
@@ -531,6 +690,83 @@ export function EnhancedAdminDashboard({ onLogout }) {
 
         {/* Main Content */}
         <main className="flex-1 p-6">
+        {/* Action message toast */}
+          {actionMsg && (
+            <div className="fixed top-4 right-4 z-50 px-4 py-3 rounded-lg bg-[#2563EB] text-white shadow-lg text-sm">
+              {actionMsg}
+            </div>
+          )}
+
+          {/* Notifications View */}
+          {activeView === 'notifications' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
+                  Notifications
+                </h2>
+                <Button size="sm" variant="outline" onClick={markAllRead} className={isDarkMode ? 'border-gray-700 text-gray-300' : ''}>
+                  Mark All Read
+                </Button>
+              </div>
+              {notifications.length === 0 ? (
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Koi notification nahi hai.</p>
+              ) : (
+                <div className="space-y-3">
+                  {notifications.map(n => (
+                    <Card
+                      key={n.id}
+                      onClick={() => markRead(n.id)}
+                      className={`cursor-pointer transition-all ${
+                        n.isRead
+                          ? isDarkMode ? 'bg-[#2A3642] border-gray-800 opacity-60' : 'bg-white border-gray-200 opacity-70'
+                          : isDarkMode ? 'bg-[#2A3642] border-[#2563EB]' : 'bg-white border-[#2563EB]'
+                      }`}
+                    >
+                      <CardContent className="p-4 flex items-start gap-3">
+                        <div className={`mt-1 size-2 rounded-full flex-shrink-0 ${n.isRead ? 'bg-gray-400' : 'bg-[#2563EB]'}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>{n.title}</span>
+                            <Badge className={
+                              n.type === 'registration' ? 'bg-green-600/20 text-green-400 border-green-600/30' :
+                              n.type === 'document'     ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30' :
+                              n.type === 'video'        ? 'bg-purple-600/20 text-purple-400 border-purple-600/30' :
+                                                          'bg-gray-600/20 text-gray-400 border-gray-600/30'
+                            }>
+                              {n.type}
+                            </Badge>
+                          </div>
+                          <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{n.message}</p>
+                          <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {new Date(n.createdAt).toLocaleString()}
+                          </p>
+                          {n.type === 'document' && (
+                            <Button
+                              size="sm"
+                              className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white"
+                              onClick={(e) => { e.stopPropagation(); setActiveView('verification'); }}
+                            >
+                              <Eye className="size-3 mr-1" /> Review Documents
+                            </Button>
+                          )}
+                          {n.type === 'video' && (
+                            <Button
+                              size="sm"
+                              className="mt-2 bg-purple-600 hover:bg-purple-700 text-white"
+                              onClick={(e) => { e.stopPropagation(); setActiveView('verification'); }}
+                            >
+                              <Eye className="size-3 mr-1" /> Review Video
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Dashboard View */}
           {activeView === 'dashboard' && (
             <div className="space-y-6">
@@ -687,14 +923,21 @@ export function EnhancedAdminDashboard({ onLogout }) {
           {/* User Verification View */}
           {activeView === 'verification' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-[#1F2933]'}`}>
                   User Management
                 </h2>
-                <Badge className="bg-yellow-600/20 text-yellow-400 border-yellow-600/30">
-                  {stats.pendingVerifications} Pending Verification
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-yellow-600/20 text-yellow-400 border-yellow-600/30">
+                    {stats.pendingVerifications} Pending
+                  </Badge>
+                  <Button size="sm" variant="outline" onClick={fetchUsers} className={isDarkMode ? 'border-gray-700 text-gray-300' : ''}>
+                    <RefreshCw className="size-3 mr-1" /> Refresh
+                  </Button>
+                </div>
               </div>
+              {apiLoading && <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading users...</p>}
+              {apiError && <p className="text-sm text-red-500">{apiError}</p>}
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Users List */}
@@ -706,7 +949,7 @@ export function EnhancedAdminDashboard({ onLogout }) {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {managedUsers.map((user) => (
+                      {displayUsers.map((user) => (
                         <div
                           key={user.id}
                           onClick={() => setSelectedUser(user)}
@@ -994,17 +1237,25 @@ export function EnhancedAdminDashboard({ onLogout }) {
                           <Button
                             onClick={() => handleAccountAccess(selectedUser)}
                             className={`flex-1 text-white ${
-                              selectedUser.accountStatus === 'blocked'
+                              (selectedUser.accountStatus || selectedUser.status) === 'blocked'
                                 ? 'bg-[#2563EB] hover:bg-[#1d4ed8]'
                                 : 'bg-red-600 hover:bg-red-700'
                             }`}
                           >
-                            {selectedUser.accountStatus === 'blocked' ? (
+                            {(selectedUser.accountStatus || selectedUser.status) === 'blocked' ? (
                               <Unlock className="size-4 mr-2" />
                             ) : (
                               <Ban className="size-4 mr-2" />
                             )}
-                            {selectedUser.accountStatus === 'blocked' ? 'Unblock User' : 'Block User'}
+                            {(selectedUser.accountStatus || selectedUser.status) === 'blocked' ? 'Unblock User' : 'Block User'}
+                          </Button>
+                          <Button
+                            onClick={() => handleSuspendUser(selectedUser)}
+                            disabled={(selectedUser.accountStatus || selectedUser.status) === 'suspended'}
+                            className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white sm:col-span-2"
+                          >
+                            <PauseCircle className="size-4 mr-2" />
+                            {(selectedUser.accountStatus || selectedUser.status) === 'suspended' ? 'Already Suspended' : 'Suspend User'}
                           </Button>
                         </div>
                       </CardContent>

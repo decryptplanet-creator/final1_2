@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Badge } from './ui/labelstatus';
-import { Sparkles, MessageSquare, Bell, LogOut, Search, HardHat, Star, Package, Clock, Wallet, Settings, Mail, Filter, Shield, TrendingUp, MapPin, Factory, Plus, Inbox } from 'lucide-react';
+import { Sparkles, MessageSquare, Bell, LogOut, Search, HardHat, Star, Package, Clock, Wallet, Settings, Mail, Filter, Shield, TrendingUp, MapPin, Factory, Plus, Inbox, Users, X } from 'lucide-react';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { SearchModal } from './SearchModal';
 import { ProfileModal } from './ProfileMangement';
@@ -11,12 +11,13 @@ import ChatModule from './ChatModule';
 import { HireLabourModal } from './HireLabourModal';
 import { HorizontalProfiles } from './HorizontalProfiles';
 import { AcceptOrderModal } from './AcceptOrderModal';
-import { ChatInbox } from './ChatInbox';
+import { ChatInbox, useChatNotifications } from './ChatInbox';
 import { NotificationsModal } from './NotificationsModal';
 import { EmailModal } from './EmailModal(Optional)';
 import { SettingsModal } from './SettingsModal';
 import { ViewAllModal } from './ViewAllModal';
 import { PostOrderModal } from './PostOrderModal';
+import { ReviewSubmissionModal } from './ReviewSubmissionModal';
 import { useTheme } from '../contexts/ThemeContext';
 
 // ✅ FIX 1: Port 5001 → 5003
@@ -31,12 +32,14 @@ export function ManufacturerDashboard({ user, onLogout }) {
   const [showProfile, setShowProfile] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
+  const { unread: chatUnread, clearUnread, sendNotification } = useChatNotifications(user?.id || user?._id);
   const [chatTarget, setChatTarget] = useState(null);
   const [showHireLabour, setShowHireLabour] = useState(false);
   const [showAcceptOrder, setShowAcceptOrder] = useState(false);
   const [activeTab, setActiveTab] = useState('available');
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifUnread, setNotifUnread] = useState(0);
   const [showEmail, setShowEmail] = useState(false);
   const [showLabourOrderForm, setShowLabourOrderForm] = useState(false);
   const [labourOrderForm, setLabourOrderForm] = useState({ title: '', description: '', budget: '', deadline: '', quantity: 1 });
@@ -45,6 +48,64 @@ export function ManufacturerDashboard({ user, onLogout }) {
   const [showViewAll, setShowViewAll] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [showPostOrder, setShowPostOrder] = useState(false);
+
+  // ── Labour Orders (posted by this manufacturer) ──
+  const [labourOrders, setLabourOrders] = useState([]);
+  const [applicationsOrder, setApplicationsOrder] = useState(null); // order whose applicants to view
+  const [reviewLabourTarget, setReviewLabourTarget] = useState(null); // { orderId, labourId, labourName }
+  const [reviewedIds, setReviewedIds] = useState(new Set());
+
+  const fetchLabourOrders = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/orders/labour/mine`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      setLabourOrders(Array.isArray(data) ? data : []);
+    } catch (_) {}
+  }, []); // eslint-disable-line
+
+  const handleHireLabour = async (order, applicant) => {
+    try {
+      const res = await fetch(`${API}/api/orders/labour/hire/${order._id || order.id}`, {
+        method: 'PUT', headers: authHeaders(),
+        body: JSON.stringify({ labourId: applicant.labourId }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      fetchLabourOrders();
+      sendNotification(applicant.labourId, `✅ Mubarak! Aapko "${order.title}" order ke liye hire kar liya gaya hai.`, order._id || order.id);
+      // Auto-open chat with hired labour
+      setChatTarget({ id: applicant.labourId, name: applicant.labourName, orderId: order._id || order.id });
+      setApplicationsOrder(null);
+      setShowChat(true);
+    } catch (err) { alert('Error: ' + err.message); }
+  };
+
+  const handleRejectLabour = async (order, applicant) => {
+    try {
+      const res = await fetch(`${API}/api/orders/labour/reject/${order._id || order.id}`, {
+        method: 'PUT', headers: authHeaders(),
+        body: JSON.stringify({ labourId: applicant.labourId }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      fetchLabourOrders();
+      sendNotification(applicant.labourId, `❌ Afsos, "${order.title}" order ke liye aapki application reject ho gayi.`, order._id || order.id);
+      // Refresh applications modal with updated data
+      setApplicationsOrder(prev => prev ? { ...prev, applicants: prev.applicants.map(a => a.labourId === applicant.labourId ? { ...a, status: 'rejected' } : a) } : null);
+    } catch (err) { alert('Error: ' + err.message); }
+  };
+
+  const handleSubmitLabourReview = async (rating, comment) => {
+    if (!reviewLabourTarget) return;
+    try {
+      await fetch(`${API}/api/reviews/submit`, {
+        method: 'PUT', headers: authHeaders(),
+        body: JSON.stringify({ reviewerId: user?.id, receiverId: reviewLabourTarget.labourId, orderId: reviewLabourTarget.orderId, rating, comment }),
+      });
+      alert('✅ Review submitted!');
+      setReviewedIds(prev => new Set([...prev, reviewLabourTarget.orderId]));
+      setReviewLabourTarget(null);
+    } catch (err) { alert('Error: ' + err.message); }
+  };
 
   // ── Real escrow status map: { [orderId]: escrow } ──
   const [escrowMap, setEscrowMap] = useState({});
@@ -93,11 +154,29 @@ export function ManufacturerDashboard({ user, onLogout }) {
       setAvailableOrders((available || []).map(normalizeOrder));
       const normalizedAccepted = (accepted || []).map(normalizeOrder);
       setAcceptedOrders(normalizedAccepted);
-      normalizedAccepted.forEach(o => fetchEscrow(o.id));
+      // normalizedAccepted.forEach(o => fetchEscrow(o.id)); // disabled — backend route not available
     } catch (_) {}
   }, []); // eslint-disable-line
 
-  useEffect(() => { fetchOrders(); }, []); // eslint-disable-line
+  const fetchNotifUnread = async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/api/admin/my-notifications`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifUnread(data.filter(n => !n.isRead).length);
+      }
+    } catch {}
+  };
+
+  useEffect(() => { fetchOrders(); fetchLabourOrders(); fetchNotifUnread(); }, []); // eslint-disable-line
+
+  // Auto-refresh labour orders every 15 seconds to catch new applicants
+  useEffect(() => {
+    const interval = setInterval(fetchLabourOrders, 15000);
+    return () => clearInterval(interval);
+  }, [fetchLabourOrders]);
 
   const handlePostOrder = async (orderData) => {
     try {
@@ -159,12 +238,13 @@ export function ManufacturerDashboard({ user, onLogout }) {
       const res = await fetch(`${API}/api/orders/labour`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ ...labourOrderForm, budget: Number(labourOrderForm.budget), quantity: Number(labourOrderForm.quantity) || 1 }),
+        body: JSON.stringify({ ...labourOrderForm, budget: Number(labourOrderForm.budget), quantity: Number(labourOrderForm.quantity) || 1, postedBy: user?.id || user?._id }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       alert('✅ Labour order posted!');
       setShowLabourOrderForm(false);
       setLabourOrderForm({ title: '', description: '', budget: '', deadline: '', quantity: 1 });
+      fetchLabourOrders();
     } catch (err) {
       alert('Error: ' + err.message);
     } finally {
@@ -203,14 +283,16 @@ export function ManufacturerDashboard({ user, onLogout }) {
               <Button variant="ghost" size="icon" onClick={() => setShowEmail(true)} title="Email" className="text-[#2563EB] hover:bg-[#2563EB]/10">
                 <Mail className="size-5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setShowInbox(true)} title="Inbox" className="text-[#2563EB] hover:bg-[#2563EB]/10">
+              <Button variant="ghost" size="icon" onClick={() => { setShowInbox(true); clearUnread(); }} title="Inbox" className="text-[#2563EB] hover:bg-[#2563EB]/10 relative">
                 <Inbox className="size-5" />
+                {chatUnread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{chatUnread}</span>}
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowChat(true)} title="Messages" className="text-[#2563EB] hover:bg-[#2563EB]/10">
                 <MessageSquare className="size-5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setShowNotifications(true)} title="Notifications" className="text-[#2563EB] hover:bg-[#2563EB]/10">
+              <Button variant="ghost" size="icon" onClick={() => { setShowNotifications(true); setNotifUnread(0); }} title="Notifications" className="text-[#2563EB] hover:bg-[#2563EB]/10 relative">
                 <Bell className="size-5" />
+                {notifUnread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{notifUnread}</span>}
               </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} title="Settings" className={`${isDarkMode ? 'text-[#F9FAFB] hover:bg-gray-700' : 'text-[#1F2933] hover:bg-gray-100'}`}>
                 <Settings className="size-5" />
@@ -342,19 +424,29 @@ export function ManufacturerDashboard({ user, onLogout }) {
 
         {/* Tabs */}
         <div className={`flex gap-6 mb-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          {['available', 'accepted', 'completed'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-3 px-1 border-b-2 transition-colors capitalize ${
-                activeTab === tab
-                  ? 'border-[#2563EB] text-[#2563EB]'
-                  : isDarkMode ? 'border-transparent text-gray-400 hover:text-[#2563EB]' : 'border-transparent text-gray-500 hover:text-[#2563EB]'
-              }`}
-            >
-              {tab === 'available' ? 'Available Orders' : tab === 'accepted' ? 'Accepted Orders' : 'Completed'}
-            </button>
-          ))}
+          {['available', 'accepted', 'completed', 'labour'].map(tab => {
+            const newApplicants = tab === 'labour'
+              ? labourOrders.reduce((sum, o) => sum + (o.applicants||[]).filter(a => a.status === 'pending').length, 0)
+              : 0;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`pb-3 px-1 border-b-2 transition-colors capitalize flex items-center gap-1 ${
+                  activeTab === tab
+                    ? 'border-[#2563EB] text-[#2563EB]'
+                    : isDarkMode ? 'border-transparent text-gray-400 hover:text-[#2563EB]' : 'border-transparent text-gray-500 hover:text-[#2563EB]'
+                }`}
+              >
+                {tab === 'available' ? 'Available Orders' : tab === 'accepted' ? 'Accepted Orders' : tab === 'completed' ? 'Completed' : 'Labour Orders'}
+                {newApplicants > 0 && (
+                  <span className="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                    {newApplicants}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Orders List */}
@@ -467,7 +559,7 @@ export function ManufacturerDashboard({ user, onLogout }) {
             </Card>
           ))}
 
-          {getFilteredOrders().length === 0 && (
+          {getFilteredOrders().length === 0 && activeTab !== 'labour' && (
             <Card className={isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}>
               <CardContent className="py-12 text-center">
                 <Package className="size-12 mx-auto mb-4 text-gray-600" />
@@ -476,6 +568,51 @@ export function ManufacturerDashboard({ user, onLogout }) {
             </Card>
           )}
         </div>
+
+        {/* Labour Orders Tab */}
+        {activeTab === 'labour' && (
+          <div className="space-y-4">
+            {labourOrders.length === 0 && (
+              <Card className={isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}>
+                <CardContent className="py-12 text-center">
+                  <HardHat className="size-12 mx-auto mb-4 text-gray-600" />
+                  <p className="text-gray-400">Koi labour order nahi. "Post Labour Order" se post karein.</p>
+                </CardContent>
+              </Card>
+            )}
+            {labourOrders.map(order => (
+              <Card key={order._id} className={isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{order.title}</CardTitle>
+                        <Badge className={order.status === 'active' ? 'bg-green-500/20 text-green-400' : order.status === 'completed' ? 'bg-blue-500/20 text-blue-400' : 'bg-yellow-500/20 text-yellow-400'}>
+                          {order.status}
+                        </Badge>
+                      </div>
+                      <CardDescription className="text-sm text-gray-400">
+                        {(order.applicants || []).length} applicants · Budget: PKR {order.budget?.toLocaleString()}
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setApplicationsOrder(order)} className="text-[#2563EB] border-[#2563EB] hover:bg-[#2563EB]/10">
+                        <Users className="size-4 mr-1" /> View Applications
+                      </Button>
+                      {order.status === 'completed' && order.hiredLabour && (
+                        reviewedIds.has(order._id)
+                          ? <Badge className="bg-green-500/20 text-green-400">✅ Reviewed</Badge>
+                          : <Button size="sm" className="bg-[#2563EB] text-white" onClick={() => setReviewLabourTarget({ orderId: order._id, labourId: order.hiredLabour, labourName: (order.applicants || []).find(a => a.labourId === order.hiredLabour)?.labourName || 'Labour' })}>
+                              <Star className="size-4 mr-1" /> Review Labour
+                            </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -534,6 +671,15 @@ export function ManufacturerDashboard({ user, onLogout }) {
         <ChatInbox
           currentUserId={user?.id}
           onClose={() => setShowInbox(false)}
+          onOpenChat={(conv) => {
+            setChatTarget({
+              id: conv.with?.id,
+              name: conv.with?.name || 'User',
+              orderId: conv.orderId,
+            });
+            setShowInbox(false);
+            setShowChat(true);
+          }}
         />
       )}
 
@@ -632,6 +778,87 @@ export function ManufacturerDashboard({ user, onLogout }) {
         <PostOrderModal
           onClose={() => setShowPostOrder(false)}
           onSubmit={handlePostOrder}
+        />
+      )}
+
+      {/* Applications Modal */}
+      {applicationsOrder && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-lg rounded-xl shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#2A3642]' : 'bg-white'}`}>
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Applications — {applicationsOrder.title}
+              </h3>
+              <button onClick={() => setApplicationsOrder(null)} className="text-gray-400 hover:text-gray-600"><X className="size-5" /></button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-700">
+              {(!applicationsOrder.applicants || applicationsOrder.applicants.length === 0) ? (
+                <div className="py-12 text-center text-gray-400">Koi applicant nahi abhi tak</div>
+              ) : applicationsOrder.applicants.map((applicant, idx) => {
+                // R_Back populate karta hai — labourId object ho sakta hai ya string
+                const labourId  = applicant.labourId?._id || applicant.labourId || '';
+                const labourName = applicant.labourId?.name || applicant.labourName || `Labour ${idx + 1}`;
+                return (
+                  <div key={String(labourId) || idx} className={`flex items-center justify-between px-5 py-4 ${isDarkMode ? '' : 'border-gray-100'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-full bg-[#2563EB] flex items-center justify-center text-white font-bold">
+                        {labourName[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{labourName}</p>
+                        <p className="text-xs text-gray-400">
+                          Applied: {applicant.appliedAt ? new Date(applicant.appliedAt).toLocaleDateString() : '—'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {applicant.status === 'pending' && (
+                        <>
+                          <Button size="sm" className="bg-[#2563EB] text-white hover:bg-[#1d4ed8]"
+                            onClick={() => handleHireLabour(applicationsOrder, { ...applicant, labourId, labourName })}>
+                            Hire
+                          </Button>
+                          <Button size="sm" variant="outline" className="border-red-400 text-red-400 hover:bg-red-400/10"
+                            onClick={() => handleRejectLabour(applicationsOrder, { ...applicant, labourId, labourName })}>
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {applicant.status === 'hired' && (
+                        <>
+                          <Badge className="bg-green-500/20 text-green-400">Hired</Badge>
+                          <Button size="sm" variant="outline" className="text-[#2563EB] border-[#2563EB] hover:bg-[#2563EB]/10"
+                            onClick={() => {
+                              setChatTarget({ id: String(labourId), name: labourName, orderId: applicationsOrder._id || applicationsOrder.id });
+                              setApplicationsOrder(null);
+                              setShowChat(true);
+                            }}>
+                            💬 Chat
+                          </Button>
+                          <Button size="sm" variant="outline" className="border-red-400 text-red-400 hover:bg-red-400/10"
+                            onClick={() => handleRejectLabour(applicationsOrder, { ...applicant, labourId, labourName })}>
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {applicant.status === 'rejected' && <Badge className="bg-red-500/20 text-red-400">Rejected</Badge>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Labour Modal */}
+      {reviewLabourTarget && (
+        <ReviewSubmissionModal
+          onClose={() => setReviewLabourTarget(null)}
+          onSubmit={handleSubmitLabourReview}
+          targetName={reviewLabourTarget.labourName}
+          targetRole="labour"
+          orderId={reviewLabourTarget.orderId}
         />
       )}
     </div>

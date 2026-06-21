@@ -27,7 +27,7 @@ function StarRating({ value, onChange, readonly = false }) {
   );
 }
 
-export function ReviewModal({ revieweeId, revieweeName, onClose }) {
+export function ReviewModal({ revieweeId, revieweeName, onClose, onReviewed }) {
   const { isDarkMode } = useTheme();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -68,6 +68,7 @@ export function ReviewModal({ revieweeId, revieweeName, onClose }) {
       setSubmitted(true);
       setRating(0);
       setComment('');
+      if (onReviewed) onReviewed();
     } catch (err) {
       setError(err.message);
     } finally {

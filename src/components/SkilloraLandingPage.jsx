@@ -105,6 +105,7 @@ export function LandingPage({ onUserTypeSelect, onLogin, onAiDemo }) {
   };
 
 
+  
   const handleViewTopRated = (type) => {
     setShowTopRated(type);
     setActiveTab(null);

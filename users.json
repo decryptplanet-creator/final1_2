@@ -1,0 +1,14 @@
+{
+  "admin@skillora.com": {
+    "id": "admin_1",
+    "name": "Admin User",
+    "email": "admin@skillora.com",
+    "password": "admin123",
+    "role": "admin",
+    "status": "active",
+    "verificationStatus": "approved",
+    "rejectionReason": "",
+    "verified": true,
+    "createdAt": "2026-06-21T01:11:37.485Z"
+  }
+}

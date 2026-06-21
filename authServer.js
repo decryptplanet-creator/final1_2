@@ -1,17 +1,15 @@
-const express = require('express');
+require('dotenv').config();
+const express    = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const fs = require('fs');
-const path = require('path');
-const app = express();
+const mongoose   = require('mongoose');
+
+const app        = express();
 const httpServer = createServer(app);
+const io         = new Server(httpServer, { cors: { origin: '*', methods: ['GET','POST'] } });
 
-// Add socket.io to prevent 404 errors
-const io = new Server(httpServer, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
-});
-
-app.use(express.json());
+// ── Middleware ─────────────────────────────────────────────────────────────────
+app.use(express.json({ limit: '50mb' }));
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -21,190 +19,177 @@ app.use((req, res, next) => {
   next();
 });
 
-// File-based user store
-const USERS_FILE = path.join(__dirname, 'users.json');
+// ── MongoDB ────────────────────────────────────────────────────────────────────
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/skillora_chat')
+  .then(async () => {
+    console.log('✅ MongoDB connected');
+    // Seed admin user if not exists
+    const User = require('./models/User');
+    const exists = await User.findOne({ role: 'admin' });
+    if (!exists) {
+      await User.create({ name: 'Admin User', email: 'admin@skillora.com', password: 'admin123', role: 'admin', verificationStatus: 'approved', status: 'active' });
+      console.log('✅ Admin created: admin@skillora.com / admin123');
+    }
+  })
+  .catch(e => console.error('❌ MongoDB error:', e.message));
 
-function loadUsers() {
-  try {
-    if (fs.existsSync(USERS_FILE)) return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-  } catch { }
-  return {};
-}
+// ── Auth + Admin Routes ────────────────────────────────────────────────────────
+app.use('/api/auth',  require('./routes/authRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
-function saveUsers(data) {
-  try { fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf8'); } catch { }
-}
+// ── Orders (unchanged, file-based) ────────────────────────────────────────────
+const fs   = require('fs');
+const path = require('path');
 
-const users = loadUsers();
-
-// Register
-app.post('/api/auth/register', (req, res) => {
-  const { name, email, password, role, cnic, dob, city } = req.body;
-  if (!email || !password || !role) {
-    return res.status(400).json({ message: 'Email, password aur role zaroori hain' });
-  }
-  if (users[email]) {
-    return res.status(409).json({ message: 'Yeh email pehle se registered hai' });
-  }
-  const id = Date.now().toString();
-  const user = { id, name: name || '', email, role, cnic: cnic || '', dob: dob || '', city: city || '', verified: true };
-  users[email] = { ...user, password };
-  saveUsers(users);
-  const token = Buffer.from(`${id}:${email}:${Date.now()}`).toString('base64');
-  res.json({ token, user });
-});
-
-// Login
-app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Email aur password zaroori hain' });
-  }
-  const stored = users[email];
-  if (!stored || stored.password !== password) {
-    return res.status(401).json({ message: 'Email ya password galat hai' });
-  }
-  const { password: _, ...user } = stored;
-  const token = Buffer.from(`${user.id}:${email}:${Date.now()}`).toString('base64');
-  res.json({ token, user });
-});
-
-// ── Orders ─────────────────────────────────────────────────────────────────
 const ORDERS_FILE = path.join(__dirname, 'orders.json');
 function loadOrders() {
-  try { if (fs.existsSync(ORDERS_FILE)) return JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8')); } catch { }
+  try { if (fs.existsSync(ORDERS_FILE)) return JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8')); } catch {}
   return [];
 }
 function saveOrders(data) {
-  try { fs.writeFileSync(ORDERS_FILE, JSON.stringify(data, null, 2), 'utf8'); } catch { }
+  try { fs.writeFileSync(ORDERS_FILE, JSON.stringify(data, null, 2)); } catch {}
 }
 let orders = loadOrders();
 
-// Post new order (manufacturer or client)
 app.post('/api/orders', (req, res) => {
   const { title, description, budget, deadline, quantity, category, specifications } = req.body;
   if (!title || !budget || !deadline) return res.status(400).json({ error: 'Title, budget aur deadline zaroori hain' });
-  const order = {
-    _id: Date.now().toString(),
-    title, description: description || '', budget: Number(budget),
-    deadline, quantity: Number(quantity) || 1,
-    category: category || '', specifications: specifications || '',
-    status: 'available', createdAt: new Date().toISOString(),
-  };
-  orders.push(order);
-  saveOrders(orders);
+  const order = { _id: Date.now().toString(), title, description: description||'', budget: Number(budget), deadline, quantity: Number(quantity)||1, category: category||'', specifications: specifications||'', status: 'available', createdAt: new Date().toISOString() };
+  orders.push(order); saveOrders(orders);
   res.json(order);
 });
 
-// Get orders for manufacturer (available + accepted)
-app.get('/api/orders/manufacturer', (req, res) => {
-  res.json({
-    available: orders.filter(o => o.status === 'available'),
-    accepted:  orders.filter(o => o.status === 'accepted'),
-  });
-});
+app.get('/api/orders/manufacturer', (req, res) => res.json({
+  available: orders.filter(o => o.status === 'available'),
+  accepted:  orders.filter(o => o.status === 'accepted'),
+}));
 
-// Get orders for labour
 app.get('/api/orders/labour', (req, res) => {
-  res.json({
-    available: orders.filter(o => o.status === 'available'),
-    accepted:  orders.filter(o => o.status === 'accepted'),
-  });
+  const lo = orders.filter(o => o.type === 'labour');
+  res.json({ available: lo.filter(o => o.status === 'open'), accepted: lo.filter(o => o.status === 'active') });
 });
 
-// Get all users (for profiles)
-app.get('/api/auth/users', (req, res) => {
-  const role = req.query.role;
-  const userList = Object.values(users).map(u => ({ 
-    ...u, 
-    _id: u.id,
-    verified: true 
-  }));
-  
-  if (role) {
-    return res.json(userList.filter(u => u.role === role));
-  }
-  res.json(userList);
-});
-
-// Get all orders
 app.get('/api/orders', (req, res) => res.json(orders));
 
-// Labour accept offer
-app.put('/api/orders/labour/accept/:id', (req, res) => {
-  const orderId = req.params.id;
-  const order = orders.find(o => o._id === orderId || o.id === orderId);
-  if (!order) {
-    // Create dummy order if not found (for frontend testing)
-    const dummyOrder = {
-      _id: orderId,
-      id: orderId,
-      title: 'Sample Order',
-      status: 'accepted',
-      budget: 1000,
-      createdAt: new Date().toISOString()
-    };
-    orders.push(dummyOrder);
-    saveOrders(orders);
-    return res.json(dummyOrder);
-  }
-  order.status = 'accepted';
-  saveOrders(orders);
+app.post('/api/orders/labour', (req, res) => {
+  const { title, description, budget, deadline, quantity, postedBy } = req.body;
+  if (!title || !budget || !deadline) return res.status(400).json({ error: 'Title, budget aur deadline zaroori hain' });
+  const order = { _id: Date.now().toString(), type:'labour', title, description: description||'', budget: Number(budget), deadline, quantity: Number(quantity)||1, status:'open', applicants:[], hiredLabour:null, postedBy: postedBy||null, createdAt: new Date().toISOString() };
+  orders.push(order); saveOrders(orders);
   res.json(order);
 });
 
-// ── Stripe Escrow ──────────────────────────────────────────────────────────
+app.get('/api/orders/labour/mine', (req, res) => res.json(orders.filter(o => o.type === 'labour')));
+
+app.post('/api/orders/labour/apply/:id', (req, res) => {
+  const { labourId, labourName } = req.body;
+  if (!labourId) return res.status(400).json({ error: 'labourId zaroori hai' });
+  const order = orders.find(o => o._id === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order nahi mila' });
+  if (!order.applicants) order.applicants = [];
+  if (order.applicants.some(a => a.labourId === labourId)) return res.status(409).json({ error: 'Aap pehle se apply kar chuke hain' });
+  order.applicants.push({ labourId, labourName: labourName||labourId, appliedAt: new Date().toISOString(), status:'pending' });
+  saveOrders(orders);
+
+  // Manufacturer ke liye notification
+  createNotification({
+    title: 'New Labour Application',
+    message: `${labourName || labourId} ne "${order.title}" order pe apply kiya hai. Review karein.`,
+    type: 'labour_apply',
+    userId: order.postedBy || null,
+    meta: { orderId: order._id, orderTitle: order.title, labourId, labourName },
+  });
+
+  res.json({ success: true, order });
+});
+
+app.put('/api/orders/labour/hire/:id', async (req, res) => {
+  const { labourId } = req.body;
+  const order = orders.find(o => o._id === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order nahi mila' });
+  order.applicants = (order.applicants||[]).map(a => a.labourId === labourId ? { ...a, status:'hired' } : a);
+  order.hiredLabour = labourId; order.status = 'active';
+  saveOrders(orders);
+
+  // Save notification for labour
+  try {
+    const Notification = require('./models/Notification');
+    await Notification.create({
+      title: '✅ Hire Ho Gaye!',
+      message: `Mubarak! Aapko "${order.title}" order ke liye hire kar liya gaya hai.`,
+      type: 'labour_apply',
+      userId: String(labourId),
+    });
+  } catch (e) { console.error('Hire notification error:', e.message); }
+
+  res.json({ success: true, order });
+});
+
+app.put('/api/orders/labour/reject/:id', async (req, res) => {
+  const { labourId } = req.body;
+  const order = orders.find(o => o._id === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Order nahi mila' });
+  order.applicants = (order.applicants||[]).map(a => a.labourId === labourId ? { ...a, status:'rejected' } : a);
+  saveOrders(orders);
+
+  // Save notification for labour
+  try {
+    const Notification = require('./models/Notification');
+    await Notification.create({
+      title: '❌ Application Reject',
+      message: `Afsos, "${order.title}" order ke liye aapki application reject ho gayi.`,
+      type: 'labour_apply',
+      userId: String(labourId),
+    });
+  } catch (e) { console.error('Reject notification error:', e.message); }
+
+  res.json({ success: true, order });
+});
+
+// ── Reviews ────────────────────────────────────────────────────────────────────
+app.put('/api/reviews/submit', (req, res) => {
+  const { reviewerId, receiverId, orderId, rating, comment } = req.body;
+  if (!reviewerId||!receiverId||!orderId||!rating) return res.status(400).json({ error: 'Missing fields' });
+  const REVIEWS_FILE = path.join(__dirname, 'reviews.json');
+  let reviews = [];
+  try { if (fs.existsSync(REVIEWS_FILE)) reviews = JSON.parse(fs.readFileSync(REVIEWS_FILE,'utf8')); } catch {}
+  const idx = reviews.findIndex(r => r.reviewerId === reviewerId && r.orderId === orderId);
+  const entry = { reviewerId, receiverId, orderId, rating: Number(rating), comment: comment||'', createdAt: new Date().toISOString() };
+  if (idx >= 0) reviews[idx] = entry; else reviews.push(entry);
+  fs.writeFileSync(REVIEWS_FILE, JSON.stringify(reviews,null,2));
+  res.json({ success: true });
+});
+
+// ── Stripe Escrow ──────────────────────────────────────────────────────────────
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder');
 
 app.post('/api/escrow/stripe/initiate', async (req, res) => {
   try {
     const { orderId, amount, title } = req.body;
     if (!amount || amount <= 0) return res.status(400).json({ error: 'Amount zaroori hai' });
-
     const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'pkr',
-          product_data: { name: title || 'Skillora Order Payment' },
-          unit_amount: Math.round(amount * 100),
-        },
-        quantity: 1,
-      }],
+      mode: 'payment', payment_method_types: ['card'],
+      line_items: [{ price_data: { currency:'pkr', product_data:{ name: title||'Skillora Order Payment' }, unit_amount: Math.round(amount*100) }, quantity:1 }],
       success_url: `http://localhost:5173/payment-success?session_id={CHECKOUT_SESSION_ID}&orderId=${orderId}`,
-      cancel_url: `http://localhost:5173/payment-cancel`,
+      cancel_url:  `http://localhost:5173/payment-cancel`,
     });
-
-    // Save session id in order
-    const order = orders.find(o => o._id === orderId || o.id === orderId);
+    const order = orders.find(o => o._id === orderId);
     if (order) { order.stripeSessionId = session.id; order.escrowStatus = 'awaiting_payment'; saveOrders(orders); }
-
     res.json({ checkoutUrl: session.url, sessionId: session.id });
-  } catch (err) {
-    console.error('Stripe error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/escrow/stripe/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+app.post('/api/escrow/stripe/webhook', express.raw({ type:'application/json' }), (req, res) => {
   let event;
   try {
-    event = webhookSecret
-      ? stripe.webhooks.constructEvent(req.body, sig, webhookSecret)
+    event = process.env.STRIPE_WEBHOOK_SECRET
+      ? stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET)
       : JSON.parse(req.body);
-  } catch (err) {
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
+  } catch (err) { return res.status(400).send(`Webhook Error: ${err.message}`); }
   if (event.type === 'checkout.session.completed') {
-    const sessionId = event.data.object.id;
-    const order = orders.find(o => o.stripeSessionId === sessionId);
+    const order = orders.find(o => o.stripeSessionId === event.data.object.id);
     if (order) { order.escrowStatus = 'paid'; saveOrders(orders); }
   }
-
   res.json({ received: true });
 });
 
@@ -212,15 +197,18 @@ app.get('/api/escrow/verify/:sessionId', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
     const order = orders.find(o => o.stripeSessionId === req.params.sessionId);
-    if (order && session.payment_status === 'paid') {
-      order.escrowStatus = 'paid';
-      saveOrders(orders);
-    }
-    res.json({ status: session.payment_status, order: order || null });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    if (order && session.payment_status === 'paid') { order.escrowStatus = 'paid'; saveOrders(orders); }
+    res.json({ status: session.payment_status, order: order||null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Socket.io (minimal, for escrow/order updates) ─────────────────────────────
+io.on('connection', (socket) => {
+  socket.on('join_chat', (room) => socket.join(room));
+  socket.on('leave_chat', (room) => socket.leave(room));
+  socket.on('send_message', (msg) => io.to(msg.orderId).emit('receive_message', msg));
+  socket.on('disconnect', () => {});
 });
 
 const PORT = 5003;
-httpServer.listen(PORT, () => console.log(`Auth server running on http://localhost:${PORT}`));
+httpServer.listen(PORT, () => console.log(`✅ Auth server running on http://localhost:${PORT}`));

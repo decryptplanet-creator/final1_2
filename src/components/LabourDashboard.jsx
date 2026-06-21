@@ -1,4 +1,4 @@
-import { ChatInbox } from './ChatInbox';
+import { ChatInbox, useChatNotifications } from './ChatInbox';
 import { ProfileModal } from './ProfileMangement';
 import ChatModule from './ChatModule';
 import { HorizontalProfiles } from './HorizontalProfiles';
@@ -25,17 +25,21 @@ export function LabourDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('offers');
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifUnread, setNotifUnread] = useState(0);
   const [showEmail, setShowEmail] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showJobDetail, setShowJobDetail] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
   const [reviewTarget, setReviewTarget] = useState(null);
+  const [reviewedIds, setReviewedIds] = useState(new Set());
   const [showSearch, setShowSearch] = useState(false);
 
   const [workOffers, setWorkOffers] = useState([]);
   const [activeWork, setActiveWork] = useState([]);
   const [completedWork, setCompletedWork] = useState([]);
   const [earnings] = useState({ total: 47500, currentMonth: 12300 });
+
+  const { unread: chatUnread, clearUnread } = useChatNotifications(user?.id || user?._id);
 
   const API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
   const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token') || '';
@@ -46,6 +50,7 @@ export function LabourDashboard({ user, onLogout }) {
       const res = await fetch(`${API}/api/orders/labour`, { headers: authHeaders() });
       if (!res.ok) return;
       const { available, accepted } = await res.json();
+      const myId = String(user?.id || user?._id || '');
       const toOffer = (o) => ({
         id: o._id,
         orderTitle: o.title,
@@ -55,42 +60,69 @@ export function LabourDashboard({ user, onLogout }) {
         duration: o.deadline,
         status: 'pending',
         description: o.description,
+        applicants: o.applicants || [],
+        hiredLabour: o.hiredLabour,
+        appliedByMe: (o.applicants || []).some(a => String(a.labourId) === myId || String(a.labourId?._id) === myId),
       });
       const toActive = (o) => ({ ...toOffer(o), status: 'accepted' });
       setWorkOffers(available?.length ? available.map(toOffer) : [
-        { id: 'wo1', orderTitle: 'Fabric Cutting & Stitching', manufacturerName: 'Faisal Garments', rate: 700, duration: '3 days', status: 'pending' },
-        { id: 'wo2', orderTitle: 'Embroidery Work - 500 Units', manufacturerName: 'Zara Textiles Pvt.', rate: 850, duration: '7 days', status: 'pending' },
-        { id: 'wo3', orderTitle: 'Button Fitting & Finishing', manufacturerName: 'Hassan Fabrics', rate: 550, duration: '2 days', status: 'pending' },
+        { id: 'wo1', orderTitle: 'Fabric Cutting & Stitching', manufacturerName: 'Faisal Garments', manufacturerId: 'guest_manufacturer', rate: 700, duration: '3 days', status: 'pending', applicants: [] },
+        { id: 'wo2', orderTitle: 'Embroidery Work - 500 Units', manufacturerName: 'Zara Textiles Pvt.', manufacturerId: 'guest_manufacturer', rate: 850, duration: '7 days', status: 'pending', applicants: [] },
+        { id: 'wo3', orderTitle: 'Button Fitting & Finishing', manufacturerName: 'Hassan Fabrics', manufacturerId: 'guest_manufacturer', rate: 550, duration: '2 days', status: 'pending', applicants: [] },
       ]);
       setActiveWork(accepted?.length ? accepted.map(toActive) : [
-        { id: 'aw1', orderTitle: 'Denim Jeans Stitching - 200 Pcs', manufacturerName: 'Punjab Denim Co.', rate: 900, duration: '10 days', status: 'accepted' },
-        { id: 'aw2', orderTitle: 'Collar Finishing - Shirt Batch', manufacturerName: 'Metro Apparel', rate: 600, duration: '4 days', status: 'accepted' },
+        { id: 'aw1', orderTitle: 'Denim Jeans Stitching - 200 Pcs', manufacturerName: 'Punjab Denim Co.', manufacturerId: 'guest_manufacturer', rate: 900, duration: '10 days', status: 'accepted', applicants: [] },
+        { id: 'aw2', orderTitle: 'Collar Finishing - Shirt Batch', manufacturerName: 'Metro Apparel', manufacturerId: 'guest_manufacturer', rate: 600, duration: '4 days', status: 'accepted', applicants: [] },
       ]);
     } catch (error) {
       console.error("Data load nahi ho saka:", error);
       setWorkOffers([
-        { id: 'wo1', orderTitle: 'Fabric Cutting & Stitching', manufacturerName: 'Faisal Garments', rate: 700, duration: '3 days', status: 'pending' },
-        { id: 'wo2', orderTitle: 'Embroidery Work - 500 Units', manufacturerName: 'Zara Textiles Pvt.', rate: 850, duration: '7 days', status: 'pending' },
+        { id: 'wo1', orderTitle: 'Fabric Cutting & Stitching', manufacturerName: 'Faisal Garments', manufacturerId: 'guest_manufacturer', rate: 700, duration: '3 days', status: 'pending', applicants: [] },
+        { id: 'wo2', orderTitle: 'Embroidery Work - 500 Units', manufacturerName: 'Zara Textiles Pvt.', manufacturerId: 'guest_manufacturer', rate: 850, duration: '7 days', status: 'pending', applicants: [] },
       ]);
     }
   };
 
-  useEffect(() => { fetchLabourData(); }, []); // eslint-disable-line
+  const fetchNotifUnread = async () => {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/api/admin/my-notifications`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifUnread(data.filter(n => !n.isRead).length);
+      }
+    } catch {}
+  };
 
-  const handleAcceptOffer = async (offer) => {
+  useEffect(() => { fetchLabourData(); fetchNotifUnread(); }, []); // eslint-disable-line
+
+  const handleApplyOffer = async (offer) => {
     if (!offer.id || offer.id.startsWith('wo') || offer.id.startsWith('aw')) {
       alert('Ye demo data hai — real orders manufacturer se aayenge!');
       return;
     }
+    const token = getToken();
+    if (!token) {
+      alert('Apply karne ke liye pehle login karein!');
+      return;
+    }
+    // Already applied?
+    const myId = user?.id || user?._id;
+    if ((offer.applicants || []).some(a => a.labourId === myId)) {
+      alert('Aap pehle se apply kar chuke hain!');
+      return;
+    }
     try {
-      const res = await fetch(`${API}/api/orders/labour/accept/${offer.id}`, {
-        method: 'PUT', headers: authHeaders(),
+      const res = await fetch(`${API}/api/orders/labour/apply/${offer.id}`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ labourId: myId, labourName: user?.name || 'Labour' }),
       });
       const d = await res.json();
-      if (!res.ok) return alert(d.message || d.error || 'Order accept nahi ho saka');
-      setWorkOffers(prev => prev.filter(o => o.id !== offer.id));
-      setActiveWork(prev => [...prev, { ...offer, status: 'accepted' }]);
-      setActiveTab('active');
+      if (!res.ok) return alert(d.message || d.error || 'Apply nahi ho saka');
+      // Mark as applied in local state
+      setWorkOffers(prev => prev.map(o => o.id === offer.id ? { ...o, appliedByMe: true } : o));
+      alert('✅ Apply ho gaya! Manufacturer hire kare ga tab active work mein aayega.');
     } catch (err) {
       alert('Error: ' + err.message);
     }
@@ -103,11 +135,14 @@ export function LabourDashboard({ user, onLogout }) {
   const handleSubmitReview = (rating, comment) => {
     console.log('Labour review submitted:', { rating, comment, target: reviewTarget });
     alert('Review submitted successfully!');
+    setReviewedIds(prev => new Set([...prev, reviewTarget?.id]));
     setReviewTarget(null);
   };
 
   const getFilteredWork = () => {
-    if (activeTab === 'offers')    return workOffers.filter(w => w.status === 'pending');
+    const myId = user?.id || user?._id;
+    if (activeTab === 'offers')    return workOffers.filter(w => w.status === 'pending' && !w.appliedByMe);
+    if (activeTab === 'applied')   return workOffers.filter(w => w.appliedByMe || (w.applicants || []).some(a => a.labourId === myId));
     if (activeTab === 'active')    return activeWork;
     if (activeTab === 'completed') return completedWork;
     return [];
@@ -134,8 +169,14 @@ export function LabourDashboard({ user, onLogout }) {
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" onClick={() => setShowEmail(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10"><Mail className="size-5" /></Button>
               {/* ✅ MessageSquare opens Inbox now */}
-              <Button variant="ghost" size="icon" onClick={() => setShowInbox(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10"><MessageSquare className="size-5" /></Button>
-              <Button variant="ghost" size="icon" onClick={() => setShowNotifications(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10"><Bell className="size-5" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => { setShowInbox(true); clearUnread(); }} className="text-[#2563EB] hover:bg-[#2563EB]/10 relative">
+                <MessageSquare className="size-5" />
+                {chatUnread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{chatUnread}</span>}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => { setShowNotifications(true); setNotifUnread(0); }} className="text-[#2563EB] hover:bg-[#2563EB]/10 relative">
+                <Bell className="size-5" />
+                {notifUnread > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{notifUnread}</span>}
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)} className={isDarkMode ? 'text-[#F9FAFB] hover:bg-gray-700' : 'text-[#1F2933] hover:bg-gray-100'}><Settings className="size-5" /></Button>
               <Button variant="ghost" onClick={() => setShowProfile(true)} className={isDarkMode ? 'text-[#F9FAFB] hover:bg-gray-700' : 'text-[#1F2933] hover:bg-gray-100'}>Profile</Button>
               <Button variant="outline" onClick={onLogout} className={isDarkMode ? 'border-gray-600 text-[#F9FAFB] hover:bg-gray-700' : 'border-gray-300 text-[#1F2933] hover:bg-gray-100'}>
@@ -202,9 +243,9 @@ export function LabourDashboard({ user, onLogout }) {
         </div>
 
         <div className={`flex gap-6 mb-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          {['offers', 'active', 'completed'].map(tab => (
+          {['offers', 'applied', 'active', 'completed'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-3 px-1 border-b-2 capitalize transition-colors ${activeTab === tab ? 'border-[#2563EB] text-[#2563EB]' : 'text-gray-400'}`}>
-              {tab === 'offers' ? 'Work Offers' : tab === 'active' ? 'Active Work' : 'Completed'}
+              {tab === 'offers' ? 'Work Offers' : tab === 'applied' ? 'Applied' : tab === 'active' ? 'Active Work' : 'Completed'}
             </button>
           ))}
         </div>
@@ -253,13 +294,26 @@ export function LabourDashboard({ user, onLogout }) {
                         <Button variant="outline" size="sm" onClick={() => handleDeclineOffer(work.id)} className="flex items-center gap-1 border-red-400 text-red-400 hover:bg-red-400/10">
                           <XCircle className="size-4" /> Decline
                         </Button>
-                        <Button size="sm" className="bg-[#2563EB] text-white hover:bg-[#1d4ed8] flex items-center gap-1" onClick={() => handleAcceptOffer(work)}>
-                          <CheckCircle className="size-4" /> Accept Offer
-                        </Button>
+                        {work.appliedByMe ? (
+                          <Badge className="bg-yellow-500/20 text-yellow-400">Applied — Awaiting Hire</Badge>
+                        ) : (
+                          <Button size="sm" className="bg-[#2563EB] text-white hover:bg-[#1d4ed8] flex items-center gap-1" onClick={() => handleApplyOffer(work)}>
+                            <CheckCircle className="size-4" /> Apply
+                          </Button>
+                        )}
                       </>
                     )}
                     {work.status === 'accepted' && (
-                      <Button size="sm" className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-1" onClick={() => {
+                      <Button size="sm" className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-1" onClick={async () => {
+                        // Call API if real order (not demo)
+                        if (work.id && !work.id.startsWith('aw')) {
+                          const token = getToken();
+                          if (token) {
+                            await fetch(`${API}/api/orders/labour/complete/${work.id}`, {
+                              method: 'PUT', headers: authHeaders(),
+                            }).catch(() => {});
+                          }
+                        }
                         setActiveWork(activeWork.filter(w => w.id !== work.id));
                         setCompletedWork([...completedWork, { ...work, status: 'completed' }]);
                         setActiveTab('completed');
@@ -267,10 +321,20 @@ export function LabourDashboard({ user, onLogout }) {
                         <CheckCircle className="size-4" /> Mark Complete
                       </Button>
                     )}
+                    {/* Applied tab: show hired / rejected status */}
+                    {activeTab === 'applied' && (() => {
+                      const myId = user?.id || user?._id;
+                      const myApp = (work.applicants || []).find(a => a.labourId === myId);
+                      if (myApp?.status === 'hired') return <Badge className="bg-green-500/20 text-green-400">✅ Hired!</Badge>;
+                      if (myApp?.status === 'rejected') return <Badge className="bg-red-500/20 text-red-400">❌ Rejected</Badge>;
+                      return <Badge className="bg-yellow-500/20 text-yellow-400">⏳ Awaiting Decision</Badge>;
+                    })()}
                     {work.status === 'completed' && (
-                      <Button size="sm" className="bg-[#2563EB] text-white hover:bg-[#1d4ed8] flex items-center gap-1" onClick={() => setReviewTarget(work)}>
-                        <Star className="size-4" /> Submit Review
-                      </Button>
+                      reviewedIds.has(work.id)
+                        ? <Badge className="bg-green-500/20 text-green-400">✅ Reviewed</Badge>
+                        : <Button size="sm" className="bg-[#2563EB] text-white hover:bg-[#1d4ed8] flex items-center gap-1" onClick={() => setReviewTarget(work)}>
+                            <Star className="size-4" /> Submit Review
+                          </Button>
                     )}
                   </div>
                 </div>
@@ -291,6 +355,7 @@ export function LabourDashboard({ user, onLogout }) {
       {showChat && (
         <ChatModule
           currentUserId={user?.id || user?._id || 'labour_user'}
+          currentUserName={user?.name || 'Labour'}
           receiverId={chatTarget?.id || 'manufacturer_user'}
           receiverName={chatTarget?.name || 'Manufacturer'}
           orderId={chatTarget?.orderId || `chat_${user?.id || 'general'}`}
