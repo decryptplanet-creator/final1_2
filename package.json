@@ -66,7 +66,7 @@
             "build": "vite build",
             "server": "node server.js",
             "auth": "node authServer.js",
-            "start:bert": "python dispute_final.py",
+            "start:bert": "\"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python313\\python.exe\" \"../R_Back/Dispute_final/dispute_final.py\"",
             "dev:all": "concurrently \"npm run server\" \"npm run dev\" \"npm run start:bert\""
       }
 }

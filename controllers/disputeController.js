@@ -12,11 +12,15 @@ function hasRomanUrduFraud(text) {
   return FRAUD_KEYWORDS.some(word => lower.includes(word));
 }
 
-// Call BERT service (Python Flask on port 5002)
+// Call BERT service (Python Flask on port 5000)
 async function getBertScore(text) {
   try {
-    const res = await axios.post('http://localhost:5002/analyze', { text }, { timeout: 5000 });
-    return res.data?.score ?? null;
+    const res = await axios.post('http://localhost:5000/predict-dispute', { message: text }, { timeout: 5000 });
+    // Returns { status: "DISPUTE"/"NORMAL", confidence: "87.5%" }
+    const status = res.data?.status;
+    const confidence = parseFloat(res.data?.confidence) / 100 || 0;
+    // Convert to score: DISPUTE → high score, NORMAL → low score
+    return status === 'DISPUTE' ? confidence : 1 - confidence;
   } catch {
     return null; // BERT unavailable - fallback to keyword only
   }
