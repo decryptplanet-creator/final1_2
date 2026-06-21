@@ -85,6 +85,10 @@ function checkDispute(text) {
   return matched ? `Suspicious content detected: "${matched}"` : null;
 }
 
+// ─── Dispute Routes ───────────────────────────────────────────────────────────
+const disputeRoutes = require('./routes/disputeRoutes');
+app.use('/api/dispute', disputeRoutes);
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 // GET inbox

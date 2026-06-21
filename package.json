@@ -58,12 +58,15 @@
       "devDependencies": {
             "@types/node": "^20.10.0",
             "@vitejs/plugin-react-swc": "^3.10.2",
+            "concurrently": "^10.0.3",
             "vite": "^6.4.3"
       },
       "scripts": {
             "dev": "vite",
             "build": "vite build",
             "server": "node server.js",
-            "auth": "node authServer.js"
+            "auth": "node authServer.js",
+            "start:bert": "python dispute_final.py",
+            "dev:all": "concurrently \"npm run server\" \"npm run dev\" \"npm run start:bert\""
       }
 }

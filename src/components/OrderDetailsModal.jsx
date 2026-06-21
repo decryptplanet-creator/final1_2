@@ -708,6 +708,7 @@ export function OrderDetailsModal({ order, userType, onClose, onUpdate, onAccept
           onClose={() => setShowDisputeModal(false)}
           orderId={order.id}
           orderTitle={order.title}
+          currentUser={JSON.parse(localStorage.getItem('user') || '{}')}
           onSubmitted={(updates) => {
             if (onUpdate) {
               onUpdate(updates);

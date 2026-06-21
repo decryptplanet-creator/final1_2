@@ -10,7 +10,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
-export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted }) {
+export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted, currentUser }) {
   const { isDarkMode } = useTheme();
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDescription, setDisputeDescription] = useState('');
@@ -47,6 +47,7 @@ export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted }) {
         description: disputeDescription,
         evidenceFiles: evidenceFiles.map((file) => file.name),
         referenceId: generatedReferenceId,
+        raisedBy: currentUser?._id || currentUser?.id || JSON.parse(localStorage.getItem('user') || '{}')?.id || '',
       };
 
       const [escrowResponse, createResponse] = await Promise.all([
@@ -89,7 +90,7 @@ export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted }) {
       const resolvedReferenceId = createData.referenceId || generatedReferenceId;
       setReferenceId(resolvedReferenceId);
 
-      const resolutionStatus = createData.status === 'auto-resolved' ? 'auto-resolved' : 'escalated';
+      const resolutionStatus = createData.autoResolved ? 'auto-resolved' : 'escalated';
       setResolution(resolutionStatus);
 
       if (onSubmitted) {
