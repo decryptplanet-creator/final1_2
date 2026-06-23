@@ -6,7 +6,7 @@ import {
   TrendingUp, Clock, CheckCircle, MessageSquare, Mail, 
   Calendar, DollarSign, Users, FileText, Video, Image as ImageIcon, ArrowLeft 
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ChatModule from './ChatModule';
 import { EmailModal } from './EmailModal(Optional)';
 import { LocationModal } from './LocationModal';
@@ -51,6 +51,16 @@ export function IndividualProfile({ profile, userType, onClose, currentUserId })
     return Math.round((avg / 5) * 100);
   };
   const [trustScoreState, setTrustScoreState] = useState(calcTrustScoreFromReviews(reviews));
+
+  const AUTH_API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+  useEffect(() => {
+    const userId = profile?.id || profile?._id;
+    if (!userId) return;
+    fetch(`${AUTH_API}/api/auth/users/${userId}`)
+      .then(r => r.json())
+      .then(data => { if (data?.trustScore != null) setTrustScoreState(data.trustScore); })
+      .catch(() => {});
+  }, [profile?.id, profile?._id]);
 
   // Allow leaving review if a different logged-in user is viewing the profile
   let canLeaveReview = false;
@@ -324,7 +334,7 @@ export function IndividualProfile({ profile, userType, onClose, currentUserId })
                           onClick={() => {
                             if (!newRating) return alert('Please select a star rating');
                             if (!newComment.trim()) return alert('Please write a short comment');
-                            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                            
                             const reviewer = currentUser.name || 'You';
                             const newReview = {
                               id: Date.now(),
@@ -337,7 +347,24 @@ export function IndividualProfile({ profile, userType, onClose, currentUserId })
                             setReviewsState(updated);
                             setNewRating(0);
                             setNewComment('');
-                            setTrustScoreState(calcTrustScoreFromReviews(updated));
+                            const newScore = calcTrustScoreFromReviews(updated);
+                            setTrustScoreState(newScore);
+
+                            // Save to backend (R_Back — HuggingFace sentiment + MongoDB)
+                            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                            const profileId = profile?.id || profile?._id;
+                            const token = localStorage.getItem('token') || '';
+                            if (profileId && token) {
+                              fetch(`${AUTH_API}/api/reviews/add`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                body: JSON.stringify({
+                                  revieweeId: profileId,
+                                  rating: newRating,
+                                  comment: newComment.trim(),
+                                }),
+                              }).catch(() => {});
+                            }
                           }}
                           className="bg-[#2563EB] text-white"
                         >

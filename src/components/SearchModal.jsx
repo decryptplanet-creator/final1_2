@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -14,9 +14,37 @@ export function SearchModal({ onClose, userType, currentUserId }) {
   const [showChat, setShowChat] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
+  const [apiUsers, setApiUsers] = useState([]);
 
-  // Enhanced search results with semantic keywords
-  const searchResults = [
+  const AUTH_API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+
+  // Fetch real registered users on mount
+  useEffect(() => {
+    fetch(`${AUTH_API}/api/auth/users`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setApiUsers(data
+            .filter(u => u.role === 'labour' || u.role === 'manufacturer')
+            .map(u => ({
+              id: u._id,
+              name: u.name || u.email,
+              type: u.role,
+              rating: 0,
+              reviews: 0,
+              skills: u.skills || [],
+              specialization: u.specialization || '',
+              location: u.city || '',
+              rate: u.rate || 0,
+              verified: u.verificationStatus === 'approved',
+            })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Static fallback/demo results
+  const searchResults = [...apiUsers, ...([
     // Stitching-related results
     {
       id: 'l1',
@@ -242,7 +270,7 @@ export function SearchModal({ onClose, userType, currentUserId }) {
       location: 'Lahore',
       verified: true,
     },
-  ];
+  ]).filter(s => !apiUsers.find(u => u.name === s.name))];
 
   // Enhanced semantic search filter
   const filteredResults = searchResults.filter(result => {

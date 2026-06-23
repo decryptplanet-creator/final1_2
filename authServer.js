@@ -147,7 +147,7 @@ app.put('/api/orders/labour/reject/:id', async (req, res) => {
 });
 
 // ── Reviews ────────────────────────────────────────────────────────────────────
-app.put('/api/reviews/submit', (req, res) => {
+app.put('/api/reviews/submit', async (req, res) => {
   const { reviewerId, receiverId, orderId, rating, comment } = req.body;
   if (!reviewerId||!receiverId||!orderId||!rating) return res.status(400).json({ error: 'Missing fields' });
   const REVIEWS_FILE = path.join(__dirname, 'reviews.json');
@@ -157,6 +157,18 @@ app.put('/api/reviews/submit', (req, res) => {
   const entry = { reviewerId, receiverId, orderId, rating: Number(rating), comment: comment||'', createdAt: new Date().toISOString() };
   if (idx >= 0) reviews[idx] = entry; else reviews.push(entry);
   fs.writeFileSync(REVIEWS_FILE, JSON.stringify(reviews,null,2));
+
+  // Update trustScore in DB for receiverId
+  try {
+    const User = require('./models/User');
+    const userReviews = reviews.filter(r => r.receiverId === receiverId);
+    if (userReviews.length > 0) {
+      const avg = userReviews.reduce((s, r) => s + r.rating, 0) / userReviews.length;
+      const newScore = Math.round((avg / 5) * 100);
+      await User.findByIdAndUpdate(receiverId, { trustScore: newScore });
+    }
+  } catch (e) { console.error('trustScore update error:', e.message); }
+
   res.json({ success: true });
 });
 
@@ -203,11 +215,46 @@ app.get('/api/escrow/verify/:sessionId', async (req, res) => {
 });
 
 // ── Socket.io (minimal, for escrow/order updates) ─────────────────────────────
+const adminSockets = new Set();
+
 io.on('connection', (socket) => {
+  socket.on('register_user', (userId) => {
+    socket._userId = userId;
+    if (String(userId).startsWith('admin')) adminSockets.add(socket.id);
+  });
   socket.on('join_chat', (room) => socket.join(room));
   socket.on('leave_chat', (room) => socket.leave(room));
   socket.on('send_message', (msg) => io.to(msg.orderId).emit('receive_message', msg));
-  socket.on('disconnect', () => {});
+  socket.on('disconnect', () => adminSockets.delete(socket.id));
+});
+
+// expose io for use in routes
+app.set('io', io);
+app.set('adminSockets', adminSockets);
+
+// ── GPS Location Verification ──────────────────────────────────────────────────
+app.post('/api/verify-location', async (req, res) => {
+  try {
+    const { latitude, longitude, enteredAddress } = req.body;
+    const key = process.env.MAPS_API_KEY;
+    if (!key) return res.status(500).json({ message: 'MAPS_API_KEY not set' });
+
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!data.results?.length) return res.json({ capturedAddress: '', locationVerified: false, message: 'Location not found' });
+
+    const capturedAddress = data.results[0].formatted_address;
+    const cityComponent = data.results[0].address_components?.find(c => c.types.includes('locality'));
+    const capturedCity = cityComponent?.long_name?.toLowerCase() || '';
+    const enteredCity = (enteredAddress || '').toLowerCase();
+    const locationVerified = enteredCity ? enteredCity.includes(capturedCity) || capturedCity.includes(enteredCity) : true;
+
+    res.json({ capturedAddress, locationVerified, message: locationVerified ? 'Location verified' : 'Address mismatch' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 const PORT = 5003;

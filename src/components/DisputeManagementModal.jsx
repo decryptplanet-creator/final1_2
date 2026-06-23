@@ -39,6 +39,8 @@ export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted, curren
     const generatedReferenceId = `DSP-${orderId}-${Date.now()}`;
     setReferenceId(generatedReferenceId);
 
+    const token = localStorage.getItem('token');
+
     try {
       const disputePayload = {
         orderId,
@@ -53,7 +55,10 @@ export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted, curren
       const [escrowResponse, createResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/api/escrow/dispute/${orderId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             status: 'disputed',
             disputeReason,
@@ -63,7 +68,10 @@ export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted, curren
         }),
         fetch(`${API_BASE_URL}/api/dispute/create`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify(disputePayload),
         }),
       ]);

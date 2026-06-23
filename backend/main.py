@@ -1,6 +1,11 @@
 import os
 import sys
 import asyncio
+import io
+
+# Fix Windows charmap encoding — wrap stdout/stderr with utf-8
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 import uvicorn
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -169,4 +174,4 @@ async def face_verify(request: FaceVerifyRequest):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

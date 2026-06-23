@@ -216,6 +216,45 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
   const [videoUploaded, setVideoUploaded] = useState(false);
   const [businessDocUploaded, setBusinessDocUploaded] = useState(false);
   const [locationVerified, setLocationVerified] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState('');
+
+  const AUTH_API = import.meta.env.VITE_API_URL || 'http://localhost:5003';
+
+  const handleVerifyGPS = () => {
+    setGpsLoading(true);
+    setGpsError('');
+    if (!navigator.geolocation) {
+      setGpsError('GPS not supported. Please enter address manually.');
+      setGpsLoading(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(`${AUTH_API}/api/verify-location`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude, longitude, enteredAddress: formData.address }),
+          });
+          const data = await res.json();
+          setLocation({ lat: latitude, lng: longitude, address: data.capturedAddress });
+          setFormData(prev => ({ ...prev, address: data.capturedAddress, latitude, longitude, capturedAddress: data.capturedAddress, locationVerified: data.locationVerified }));
+          setLocationVerified(data.locationVerified);
+          if (!data.locationVerified) setGpsError('Address mismatch — address updated to GPS location.');
+        } catch {
+          setGpsError('Verification failed. Please try again.');
+        } finally {
+          setGpsLoading(false);
+        }
+      },
+      () => {
+        setGpsError('GPS permission denied. Please enter address manually.');
+        setGpsLoading(false);
+      }
+    );
+  };
 
   const cnicFrontInputRef = useRef(null);
   const cnicBackInputRef = useRef(null);
@@ -300,6 +339,10 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
       name: formData.name, email: formData.email, phone: formData.phone,
       cnic: formData.cnic, address: formData.address,
       location: location || undefined,
+      latitude: formData.latitude || (location?.lat) || null,
+      longitude: formData.longitude || (location?.lng) || null,
+      capturedAddress: formData.capturedAddress || formData.address || '',
+      locationVerified: locationVerified,
       skills: formData.skills.length > 0 ? formData.skills : undefined,
       rate: formData.rate ? Number(formData.rate) : undefined,
       videoProfile: formData.videoProfile ? URL.createObjectURL(formData.videoProfile) : undefined,
@@ -455,11 +498,12 @@ export function EnhancedRegistrationForm({ userType, onComplete, onBack }) {
                   style={isUrdu ? { direction: 'rtl' } : {}}
                   className={`flex-1 ${isDarkMode ? 'bg-[#1F2933] border-gray-700 text-[#F9FAFB]' : 'bg-white border-gray-300 text-[#1F2933]'}`}
                 />
-                <Button type="button" onClick={() => setShowLocationModal(true)} className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white">
+                <Button type="button" onClick={handleVerifyGPS} disabled={gpsLoading} className="bg-[#2563EB] hover:bg-[#1d4ed8] text-white">
                   <MapPin className="size-4 mr-1" />
-                  <span style={isUrdu ? nastaliqStyle : {}}>{locationVerified ? t.update : t.verifyGPS}</span>
+                  <span style={isUrdu ? nastaliqStyle : {}}>{gpsLoading ? 'Capturing...' : locationVerified ? t.update : t.verifyGPS}</span>
                 </Button>
               </div>
+              {gpsError && <p className="text-xs mt-1 text-red-500">{gpsError}</p>}
               {location && (
                 <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} style={{ direction: 'ltr' }}>
                   {t.coordinates}: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}

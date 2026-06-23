@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import io from 'socket.io-client';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/labelstatus';
@@ -99,7 +100,23 @@ export function EnhancedAdminDashboard({ onLogout }) {
     fetchUsers();
     fetchDisputes();
     const interval = setInterval(fetchNotifications, 15000);
-    return () => clearInterval(interval);
+
+    // Real-time: jab koi naya user register ho
+    const socket = io(API, { transports: ['websocket', 'polling'] });
+    socket.emit('register_user', 'admin_dashboard');
+    socket.on('new_user_registered', (data) => {
+      setNotifications(prev => [{
+        _id: Date.now(),
+        title: 'New User Registered',
+        message: `${data.name} (${data.role}) ne register kiya`,
+        type: 'registration',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      }, ...prev]);
+      fetchUsers(); // refresh users list
+    });
+
+    return () => { clearInterval(interval); socket.disconnect(); };
   }, [fetchNotifications, fetchUsers, fetchDisputes]);
 
   const showMsg = (msg) => { setActionMsg(msg); setTimeout(() => setActionMsg(''), 3000); };

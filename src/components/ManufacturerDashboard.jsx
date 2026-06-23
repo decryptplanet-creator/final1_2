@@ -97,9 +97,9 @@ export function ManufacturerDashboard({ user, onLogout }) {
   const handleSubmitLabourReview = async (rating, comment) => {
     if (!reviewLabourTarget) return;
     try {
-      await fetch(`${API}/api/reviews/submit`, {
-        method: 'PUT', headers: authHeaders(),
-        body: JSON.stringify({ reviewerId: user?.id, receiverId: reviewLabourTarget.labourId, orderId: reviewLabourTarget.orderId, rating, comment }),
+      await fetch(`${API}/api/reviews/add`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ revieweeId: reviewLabourTarget.labourId, rating, comment }),
       });
       alert('✅ Review submitted!');
       setReviewedIds(prev => new Set([...prev, reviewLabourTarget.orderId]));

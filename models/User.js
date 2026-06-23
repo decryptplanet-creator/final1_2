@@ -14,6 +14,11 @@ const userSchema = new mongoose.Schema({
   verificationStatus: { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
   rejectionReason:    { type: String, default: '' },
   verified:           { type: Boolean, default: true },
+  trustScore:         { type: Number, default: 50 },
+  latitude:           { type: Number, default: null },
+  longitude:          { type: Number, default: null },
+  capturedAddress:    { type: String, default: '' },
+  locationVerified:   { type: Boolean, default: false },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

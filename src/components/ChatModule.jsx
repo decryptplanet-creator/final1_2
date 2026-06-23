@@ -28,6 +28,10 @@ export default function ChatModule({ currentUserId, currentUserName = '', receiv
 
   const isForThisChat = (msg) => norm(msg.orderId) === norm(orderId);
 
+  const isMyMessage = (msg) =>
+    norm(msg.sender) === norm(currentUserId) ||
+    (currentUserName && norm(msg.senderName) === norm(currentUserName));
+
   const addIfNew = (incoming) => {
     const msg = incoming?.message || incoming;
     if (!isForThisChat(msg)) return;
@@ -226,12 +230,18 @@ export default function ChatModule({ currentUserId, currentUserName = '', receiv
                   <span className="text-xs px-3 py-1 rounded-full shadow-sm" style={{ background: '#DBEAFE', color: '#1E40AF', fontWeight: 500 }}>{date}</span>
                 </div>
                 {msgs.map((m, i) => {
-                  const isMe = norm(m.sender) === norm(currentUserId);
+                  const isMe = isMyMessage(m);
                   const isImage = m.message?.startsWith('IMAGE_DATA:');
                   const showTail = i === 0 || norm(msgs[i - 1]?.sender) !== norm(m.sender);
                   return (
                     <div key={m._id || i} className={`flex mb-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div className="relative max-w-[78%]" style={{ background: isMe ? '#2563EB' : '#F1F5F9', borderRadius: isMe ? (showTail ? '12px 12px 0px 12px' : '12px') : (showTail ? '12px 12px 12px 0px' : '12px'), padding: isImage ? '3px' : '8px 12px 6px', boxShadow: '0 1px 2px rgba(0,0,0,0.08)', marginBottom: showTail ? '2px' : '1px' }}>
+                        {showTail && !isMe && (
+                          <p className="text-xs font-semibold mb-1" style={{ color: '#2563EB' }}>{m.senderName || receiverName}</p>
+                        )}
+                        {showTail && isMe && (
+                          <p className="text-xs font-semibold mb-1 text-right" style={{ color: '#BFDBFE' }}>{m.senderName || currentUserName || 'You'}</p>
+                        )}
                         {isImage ? (
                           <img src={m.message.split('IMAGE_DATA:')[1]} alt="Shared" className="rounded-md max-h-52 w-full object-cover" />
                         ) : (

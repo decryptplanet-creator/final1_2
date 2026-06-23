@@ -7,7 +7,7 @@ const sign = (id) => jwt.sign({ id }, JWT_SECRET, { expiresIn: '7d' });
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role, cnic, dob, city, affidavit, labourVideo } = req.body;
+    const { name, email, password, role, cnic, dob, city, affidavit, labourVideo, latitude, longitude, capturedAddress, locationVerified } = req.body;
     if (!email || !password || !role)
       return res.status(400).json({ message: 'Email, password aur role zaroori hain' });
 
@@ -18,6 +18,8 @@ exports.register = async (req, res) => {
       name: name || '', email, password, role: role.toLowerCase(),
       cnic: cnic || '', dob: dob || '', city: city || '',
       affidavit: affidavit || '', labourVideo: labourVideo || '',
+      latitude: latitude || null, longitude: longitude || null,
+      capturedAddress: capturedAddress || '', locationVerified: !!locationVerified,
     });
 
     // Admin notification: new registration
@@ -50,6 +52,22 @@ exports.register = async (req, res) => {
 
     const token = sign(user._id);
     const { password: _, ...userData } = user.toObject();
+
+    // Real-time notification to all connected admins
+    try {
+      const io = req.app.get('io');
+      const adminSockets = req.app.get('adminSockets');
+      if (io && adminSockets) {
+        adminSockets.forEach(socketId => {
+          io.to(socketId).emit('new_user_registered', {
+            name: user.name || user.email,
+            role: user.role,
+            userId: user._id,
+          });
+        });
+      }
+    } catch {}
+
     res.json({ token, user: userData });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -79,6 +97,16 @@ exports.getUsers = async (req, res) => {
     const query = req.query.role ? { role: req.query.role } : {};
     const users = await User.find(query).select('-password');
     res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
