@@ -130,15 +130,15 @@ export function EnhancedAdminDashboard({ onLogout }) {
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     // update local state
-    setApiUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data.user } : u));
-    if (selectedUser?.id === userId) setSelectedUser(prev => ({ ...prev, ...data.user }));
+    setApiUsers(prev => prev.map(u => (u._id === userId || u.id === userId) ? { ...u, ...data.user } : u));
+    if (selectedUser?._id === userId || selectedUser?.id === userId) setSelectedUser(prev => ({ ...prev, ...data.user }));
     await fetchNotifications();
     return data;
   };
 
   const markRead = async (id) => {
     await fetch(`${API}/api/admin/notifications/${id}/read`, { method: 'PUT', headers: authHeaders });
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    setNotifications(prev => prev.map(n => (n._id === id || n.id === id) ? { ...n, isRead: true } : n));
   };
 
   const markAllRead = async () => {
@@ -215,7 +215,7 @@ export function EnhancedAdminDashboard({ onLogout }) {
     aiStatus: u.verificationStatus === 'rejected' ? 'flagged' : 'uncertain',
     trustScore: 70,
     documents: { cnic: !!u.cnicFront || !!u.hasAffidavit, affidavit: !!u.hasAffidavit, video: !!u.hasVideo },
-    accountStatus: u.status || 'active',
+    accountStatus: u.accountStatus || u.status || 'active',
     activities: [],
   })) : managedUsers;
 
@@ -731,8 +731,8 @@ export function EnhancedAdminDashboard({ onLogout }) {
                 <div className="space-y-3">
                   {notifications.map(n => (
                     <Card
-                      key={n.id}
-                      onClick={() => markRead(n.id)}
+                      key={n._id || n.id}
+                      onClick={() => markRead(n._id || n.id)}
                       className={`cursor-pointer transition-all ${
                         n.isRead
                           ? isDarkMode ? 'bg-[#2A3642] border-gray-800 opacity-60' : 'bg-white border-gray-200 opacity-70'
@@ -773,6 +773,21 @@ export function EnhancedAdminDashboard({ onLogout }) {
                               onClick={(e) => { e.stopPropagation(); setActiveView('verification'); }}
                             >
                               <Eye className="size-3 mr-1" /> Review Video
+                            </Button>
+                          )}
+                          {n.orderId && (
+                            <Button
+                              size="sm"
+                              className="mt-2 bg-red-600 hover:bg-red-700 text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markRead(n._id || n.id);
+                                const match = disputes.find(d => d.orderId === n.orderId || d.id === n.orderId);
+                                if (match) { setSelectedDispute(match); setAdminMessageDraft(''); }
+                                setActiveView('disputes');
+                              }}
+                            >
+                              <AlertTriangle className="size-3 mr-1" /> View Dispute
                             </Button>
                           )}
                         </div>
