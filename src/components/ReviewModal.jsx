@@ -81,7 +81,7 @@ export function ReviewModal({ revieweeId, revieweeName, onClose, onReviewed }) {
     : null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4 overflow-y-auto">
       <Card className={`w-full max-w-lg max-h-[90vh] flex flex-col ${isDarkMode ? 'bg-[#2A3642] border-gray-700' : 'bg-white border-gray-200'}`}>
         <CardHeader className={`border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <div className="flex items-center justify-between">

@@ -135,6 +135,22 @@ export function ManufacturerDashboard({ user, onLogout }) {
     }
   };
 
+  const handleMarkDelivered = async (order) => {
+    const escrow = escrowMap[order.id];
+    if (!escrow) return alert('Escrow not found for this order');
+    try {
+      const res = await fetch(`${API}/api/escrow/mark-delivered/${escrow._id}`, {
+        method: 'PUT', headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) return alert(data.message);
+      alert('✅ Kaam complete mark ho gaya! Client ko notification bhej di.');
+      fetchEscrow(order.id);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
   const [availableOrders, setAvailableOrders] = useState([]);
   const [acceptedOrders,  setAcceptedOrders]  = useState([]);
 
@@ -536,6 +552,17 @@ export function ManufacturerDashboard({ user, onLogout }) {
                       30% Advance Received
                     </Badge>
                   )}
+                  {activeTab === 'accepted' && escrowMap[order.id]?.advanceReleased && !escrowMap[order.id]?.delivered && (
+                    <Button
+                      onClick={(e) => { e.stopPropagation(); handleMarkDelivered(order); }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                    >
+                      ✅ Kaam Complete
+                    </Button>
+                  )}
+                  {activeTab === 'accepted' && escrowMap[order.id]?.delivered && (
+                    <Badge className="bg-blue-500/10 text-blue-600 border-blue-500 text-xs">Delivered</Badge>
+                  )}
                   {activeTab === 'accepted' && (
                     <Button
                       variant="outline"
@@ -599,10 +626,10 @@ export function ManufacturerDashboard({ user, onLogout }) {
                       <Button size="sm" variant="outline" onClick={() => setApplicationsOrder(order)} className="text-[#2563EB] border-[#2563EB] hover:bg-[#2563EB]/10">
                         <Users className="size-4 mr-1" /> View Applications
                       </Button>
-                      {order.status === 'completed' && order.hiredLabour && (
-                        reviewedIds.has(order._id)
+                      {order.status === 'completed' && order.labourId && (
+                        reviewedIds.has(String(order._id))
                           ? <Badge className="bg-green-500/20 text-green-400">✅ Reviewed</Badge>
-                          : <Button size="sm" className="bg-[#2563EB] text-white" onClick={() => setReviewLabourTarget({ orderId: order._id, labourId: order.hiredLabour, labourName: (order.applicants || []).find(a => a.labourId === order.hiredLabour)?.labourName || 'Labour' })}>
+                          : <Button size="sm" className="bg-[#2563EB] text-white" onClick={() => setReviewLabourTarget({ orderId: String(order._id), labourId: order.labourId?._id || order.labourId, labourName: order.labourId?.name || 'Labour' })}>
                               <Star className="size-4 mr-1" /> Review Labour
                             </Button>
                       )}

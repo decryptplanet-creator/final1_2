@@ -42,12 +42,27 @@ export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted, curren
     const token = localStorage.getItem('token');
 
     try {
+      // Step 1: Upload evidence files if any
+      let uploadedUrls = [];
+      if (evidenceFiles.length > 0) {
+        const formData = new FormData();
+        evidenceFiles.forEach(file => formData.append('files', file));
+        const uploadRes = await fetch(`${API_BASE_URL}/api/dispute/upload-evidence`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadData.message || 'File upload failed');
+        uploadedUrls = uploadData.urls;
+      }
+
       const disputePayload = {
         orderId,
         title: orderTitle,
         reason: disputeReason,
         description: disputeDescription,
-        evidenceFiles: evidenceFiles.map((file) => file.name),
+        evidenceFiles: uploadedUrls,
         referenceId: generatedReferenceId,
         raisedBy: currentUser?._id || currentUser?.id || JSON.parse(localStorage.getItem('user') || '{}')?.id || '',
       };
@@ -107,9 +122,10 @@ export function DisputeModal({ onClose, orderId, orderTitle, onSubmitted, curren
           disputeReason,
           disputeDescription,
           disputeReferenceId: resolvedReferenceId,
-          disputeEvidence: evidenceFiles.map((file, index) => ({
+          disputeEvidence: uploadedUrls.map((url, index) => ({
             id: `evidence-${index + 1}`,
-            name: file.name,
+            name: url.split('/').pop(),
+            url,
             submittedBy: 'Client',
             date: new Date().toLocaleString(),
           })),

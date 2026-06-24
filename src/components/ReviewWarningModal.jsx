@@ -28,8 +28,8 @@ export function ReviewWarningModal({ onClose, reason, trustScoreImpact }) {
   const { title, description, icon: Icon, color, bgColor, borderColor } = warningContent[reason];
 
   return (
-    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-      <Card className={`max-w-lg w-full ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[9999] p-4 overflow-y-auto">
+      <Card className={`max-w-lg w-full my-auto ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
         <CardHeader className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

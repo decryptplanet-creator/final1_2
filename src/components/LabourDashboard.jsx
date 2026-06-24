@@ -309,7 +309,7 @@ export function LabourDashboard({ user, onLogout }) {
                         if (work.id && !work.id.startsWith('aw')) {
                           const token = getToken();
                           if (token) {
-                            await fetch(`${API}/api/orders/labour/complete/${work.id}`, {
+                            await fetch(`${API}/api/orders/labour/mark-complete/${work.id}`, {
                               method: 'PUT', headers: authHeaders(),
                             }).catch(() => {});
                           }

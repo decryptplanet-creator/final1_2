@@ -105,10 +105,10 @@ class LayoutVerifier:
         
         has_rectangular_contour = False
         for contour in contours:
-            if cv2.contourArea(contour) > (width * height * 0.3):  # At least 30% of image
-                epsilon = 0.02 * cv2.arcLength(contour, True)
+            if cv2.contourArea(contour) > (width * height * 0.1):  # Reduced from 30% to 10%
+                epsilon = 0.04 * cv2.arcLength(contour, True)  # More tolerance
                 approx = cv2.approxPolyDP(contour, epsilon, True)
-                if len(approx) == 4:
+                if 4 <= len(approx) <= 6:  # Allow 4-6 vertices (not strictly 4)
                     has_rectangular_contour = True
                     break
         

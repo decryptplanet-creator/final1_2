@@ -200,7 +200,9 @@ export function ClientDashboard({ user, onLogout }) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <NotificationCenter userType="client" />
+              <Button variant="ghost" size="icon" onClick={() => setShowNotifications(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10 relative">
+                <Bell className="size-5" />
+              </Button>
               <Button variant="ghost" onClick={() => setShowEscrowDemo(true)} className="text-[#2563EB] hover:bg-[#2563EB]/10">
                 <Shield className="size-4 mr-2" /> Open Escrow
               </Button>
@@ -353,7 +355,7 @@ export function ClientDashboard({ user, onLogout }) {
       {showEscrowPage && selectedOrder && <EscrowPage orderData={selectedOrder} onClose={() => setShowEscrowPage(false)} onPaymentSuccess={handleEscrowPaymentSuccess} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} userType="client" />}
       {showViewAll && <ViewAllModal type={showViewAll} onClose={() => setShowViewAll(null)} activeFilter={activeFilter} onFilterChange={setActiveFilter} onProfileClick={(i) => { setSelectedProfileUser(i); setShowProfile(true); }} currentUserId={user?.id} />}
-      {showReview && <ReviewModal revieweeId={showReview.manufacturerId} revieweeName={showReview.manufacturerName} onClose={() => setShowReview(null)} onReviewed={() => { setReviewedIds(prev => new Set([...prev, showReview.orderId])); setShowReview(null); }} />}
+      {showReview && <ReviewModal revieweeId={showReview.manufacturerId} revieweeName={showReview.manufacturerName} onClose={() => setShowReview(null)} onReviewed={() => { setReviewedIds(prev => new Set([...prev, showReview.orderId])); setShowReview(null); fetchOrders(); }} />}
       {/* ✅ ChatInbox Modal */}
       {showInbox && (
         <ChatInbox

@@ -11,28 +11,22 @@ export function NotificationsModal({ onClose }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchNotifs = async () => {
-      const token = getToken();
-      if (!token) { setLoading(false); return; }
+  const fetchNotifs = async () => {
+    const token = getToken();
+    if (!token) { setLoading(false); return; }
+    let userRole = 'user';
+    try { userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'user'; } catch {}
+    const endpoint = userRole === 'admin'
+      ? `${API}/api/admin/notifications`
+      : `${API}/api/admin/my-notifications`;
+    try {
+      const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setNotifications(await res.json());
+    } catch {}
+    setLoading(false);
+  };
 
-      // Admin = /api/admin/notifications, others = /api/admin/my-notifications
-      let userRole = 'user';
-      try { userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'user'; } catch {}
-      const endpoint = userRole === 'admin'
-        ? `${API}/api/admin/notifications`
-        : `${API}/api/admin/my-notifications`;
-
-      try {
-        const res = await fetch(endpoint, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) setNotifications(await res.json());
-      } catch {}
-      setLoading(false);
-    };
-    fetchNotifs();
-  }, []);
+  useEffect(() => { fetchNotifs(); }, []);
 
   const markRead = async (id) => {
     const token = getToken();
@@ -46,13 +40,51 @@ export function NotificationsModal({ onClose }) {
     setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
   };
 
+  const handleOrderDecision = async (notif, decision) => {
+    const token = getToken();
+    try {
+      const orderId = notif.orderId;
+      if (!orderId) return alert('Order ID nahi mili notification mein');
+
+      if (decision === 'reject') {
+        const res = await fetch(`${API}/api/orders/cancel/${orderId}`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return alert('Cancel failed');
+        // get manufacturerId from order
+        const oRes = await fetch(`${API}/api/orders/client`, { headers: { Authorization: `Bearer ${token}` } });
+        const orders = await oRes.json();
+        const order = orders.find(o => o._id === orderId || o.id === orderId);
+        if (order?.manufacturerId) {
+          await fetch(`${API}/api/admin/send-notification`, {
+            method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: order.manufacturerId, title: 'Order Rejected', message: `Client na "${order.title}" order reject ker diya.`, type: 'system' })
+          }).catch(() => {});
+        }
+        alert('Order reject ho gaya');
+      } else {
+        const oRes = await fetch(`${API}/api/orders/client`, { headers: { Authorization: `Bearer ${token}` } });
+        const orders = await oRes.json();
+        const order = orders.find(o => o._id === orderId || o.id === orderId);
+        if (!order) return alert('Order nahi mila');
+        await fetch(`${API}/api/admin/send-notification`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: order.manufacturerId, title: 'Order Approved', message: `Client na "${order.title}" order approve ker diya. Kaam shuru karein!`, type: 'system' })
+        }).catch(() => {});
+        alert('Order approve ho gaya! Manufacturer ko notification bhej di.');
+      }
+      markRead(notif._id);
+      fetchNotifs();
+    } catch (err) { alert('Error: ' + err.message); }
+  };
+
   const getIcon = (type) => {
     switch (type) {
-      case 'registration':   return <Package className="size-5 text-[#2563EB]" />;
-      case 'labour_apply':   return <Users className="size-5 text-green-500" />;
-      case 'document':       return <CheckCircle className="size-5 text-yellow-500" />;
-      case 'video':          return <AlertCircle className="size-5 text-purple-500" />;
-      default:               return <Bell className="size-5 text-gray-500" />;
+      case 'registration':    return <Package className="size-5 text-[#2563EB]" />;
+      case 'labour_apply':    return <Users className="size-5 text-green-500" />;
+      case 'order_completed':
+      case 'labour_complete': return <CheckCircle className="size-5 text-green-600" />;
+      case 'document':        return <CheckCircle className="size-5 text-yellow-500" />;
+      case 'video':           return <AlertCircle className="size-5 text-purple-500" />;
+      default:                return <Bell className="size-5 text-gray-500" />;
     }
   };
 
@@ -108,6 +140,12 @@ export function NotificationsModal({ onClose }) {
                       <span className="text-xs text-gray-500 ml-2 shrink-0">{timeAgo(n.createdAt)}</span>
                     </div>
                     <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{n.message}</p>
+                    {n.type === 'order_accepted' && !n.isRead && (
+                      <div className="flex gap-2 mt-2" onClick={e => e.stopPropagation()}>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs" onClick={() => handleOrderDecision(n, 'approve')}>✓ Approve</Button>
+                        <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white text-xs" onClick={() => handleOrderDecision(n, 'reject')}>✗ Reject</Button>
+                      </div>
+                    )}
                   </div>
                   {!n.isRead && <div className="size-2 rounded-full bg-[#2563EB] mt-2 shrink-0" />}
                 </div>

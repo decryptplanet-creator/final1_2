@@ -90,9 +90,9 @@ async def verify_cnic(request: VerificationRequest):
             user_input=request
         )
 
-        print(
-            "Verification score breakdown:",
-            {
+        import json
+        try:
+            print("Verification score breakdown:", json.dumps({
                 "final_decision": verification_result.final_decision,
                 "final_score": verification_result.final_score,
                 "text_match": verification_result.text_match_score.model_dump(),
@@ -103,8 +103,9 @@ async def verify_cnic(request: VerificationRequest):
                 "ocr_confidence": verification_result.ocr_confidence_score.model_dump(),
                 "ocr_result": ocr_result.model_dump(),
                 "face_result": face_result.model_dump(),
-            }
-        )
+            }, ensure_ascii=True, default=str))
+        except Exception:
+            print("Verification score breakdown: (print skipped due to encoding)")
         
         detailed_report = scoring_engine.get_detailed_report(verification_result)
         

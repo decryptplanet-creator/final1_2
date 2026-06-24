@@ -126,8 +126,8 @@ class OCRService:
             cnic_number = cnic_match.group(1).replace('-', '').replace(' ', '')
             result["cnic_number"] = cnic_number
         
-        # Pattern for dates (DD/MM/YYYY or DD-MM-YYYY)
-        date_pattern = r'\b(\d{1,2}[/\-]\d{1,2}[/\-]\d{4})\b'
+        # Pattern for dates (DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY)
+        date_pattern = r'\b(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{4})\b'
         dates = re.findall(date_pattern, text)
         
         # Identify DOB and Expiry
@@ -135,19 +135,17 @@ class OCRService:
             # Try to identify which date is DOB and which is expiry
             for date_str in dates:
                 # Normalize date format
-                date_normalized = date_str.replace('-', '/')
+                date_normalized = date_str.replace('-', '/').replace('.', '/')
                 
                 # Check if it's likely an expiry date (future date)
                 try:
                     from datetime import datetime
                     date_obj = datetime.strptime(date_normalized, '%d/%m/%Y')
-                    
-              
                     current_year = datetime.now().year
 
                     if date_obj.year >= current_year:
                         result["expiry_date"] = date_normalized
-                    elif date_obj.year < (current_year - 15):  # 15 saal se bara hona lazmi hai ID card ke liye
+                    elif date_obj.year <= (current_year - 10):  # age 10+ valid for CNIC
                         result["dob"] = date_normalized
                 except ValueError:
                     continue
