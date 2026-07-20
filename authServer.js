@@ -329,6 +329,22 @@ async function createNotification({ title, message, type, userId, meta }) {
   }
 }
 
+// ── Serve React Frontend (build folder) ───────────────────────────────────────
+// In production (Railway), serve the built frontend. API routes above take priority.
+const DIST_DIR = path.join(__dirname, 'build');
+if (fs.existsSync(DIST_DIR)) {
+  app.use(express.static(DIST_DIR));
+  // Catch-all: send index.html for any non-API route (React Router support)
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
+      res.sendFile(path.join(DIST_DIR, 'index.html'));
+    }
+  });
+  console.log('✅ Serving React frontend from build/');
+} else {
+  console.log('ℹ️  No build/ folder found. Frontend not being served.');
+}
+
 // ── Server Start ───────────────────────────────────────────────────────────────
 // Render sets PORT automatically. Fallback to 5003 for local dev.
 const PORT = process.env.PORT || 5003;
