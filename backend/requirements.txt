@@ -1,7 +1,12 @@
+# ─────────────────────────────────────────────────────────────────
+#  backend/requirements.txt  —  CNIC Verification FastAPI Service
+#  Pinned versions for reproducible Render deployment
+# ─────────────────────────────────────────────────────────────────
+
 fastapi==0.136.1
 uvicorn[standard]==0.47.0
 python-multipart==0.0.28
-opencv-python==4.13.0.92
+opencv-python-headless==4.11.0.86
 numpy==2.2.6
 pillow==12.2.0
 google-cloud-vision==3.14.0
@@ -14,3 +19,4 @@ scikit-image==0.25.2
 scipy==1.15.3
 deepface==0.0.100
 tf-keras==2.21.0
+requests==2.32.3

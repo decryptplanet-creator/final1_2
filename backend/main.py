@@ -175,4 +175,7 @@ async def face_verify(request: FaceVerifyRequest):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    # Render sets PORT env var automatically. Fallback to 8000 for local dev.
+    _port = int(os.environ.get("PORT", 8000))
+    _host = os.environ.get("HOST", "0.0.0.0")
+    uvicorn.run("main:app", host=_host, port=_port, reload=False)

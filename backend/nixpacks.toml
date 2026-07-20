@@ -1,0 +1,11 @@
+# nixpacks.toml — Railway/Nixpacks build config for FastAPI CNIC service
+# Python version pin karo taake Railway correct version use kare
+
+[phases.setup]
+nixPkgs = ["python310", "libGL", "libGLU", "gcc", "glib"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "uvicorn main:app --host 0.0.0.0 --port $PORT"

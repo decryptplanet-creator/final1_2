@@ -1,0 +1,171 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  render.yaml  —  SialkotHub Full-Stack Deployment Configuration
+#
+#  Services defined here:
+#  1. sialkothub-auth   → Node.js Auth + Orders + Stripe server (authServer.js)
+#  2. sialkothub-chat   → Node.js Chat + Socket.IO server (server.js)
+#  3. sialkothub-cnic   → FastAPI CNIC Verification service (backend/main.py)
+#  4. sialkothub-web    → React Static Site (Vite production build)
+#
+#  NOTE: The BERT dispute service (.venv) is a heavy ML model.
+#  It is listed as service #5 but marked as a SEPARATE deployment guide
+#  below because it requires significant RAM (512MB+).
+#
+#  HOW TO DEPLOY:
+#  1. Push this repo to GitHub
+#  2. Go to https://dashboard.render.com → New → Blueprint
+#  3. Connect your GitHub repo
+#  4. Render reads this file and creates all services automatically
+#  5. After deploy, copy the real URLs from Render dashboard and update
+#     VITE_* env vars, then rebuild frontend.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 1. AUTH SERVER  (Node.js — authServer.js)
+  #    Handles: auth, orders, Stripe escrow, admin, notifications, GPS
+  # ─────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: sialkothub-auth
+    runtime: node
+    region: singapore   # closest to Pakistan
+    plan: free          # change to 'starter' for always-on (no spin-down)
+    rootDir: .
+    buildCommand: npm install --omit=dev
+    startCommand: node authServer.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000   # Render ignores this — it sets its own PORT
+      - key: MONGO_URI
+        sync: false    # Set this manually in Render dashboard (secret)
+      - key: JWT_SECRET
+        sync: false    # Set this manually in Render dashboard (secret)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: MAPS_API_KEY
+        sync: false
+      - key: FLASK_API_URL
+        value: https://sialkothub-bert.onrender.com
+      - key: FRONTEND_URL
+        value: https://sialkothub-web.onrender.com
+      - key: CORS_ORIGINS
+        value: https://sialkothub-web.onrender.com,capacitor://localhost,ionic://localhost
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 2. CHAT SERVER  (Node.js — server.js)
+  #    Handles: chat messages, Socket.IO real-time, dispute detection
+  # ─────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: sialkothub-chat
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: .
+    buildCommand: npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FLASK_API_URL
+        value: https://sialkothub-bert.onrender.com
+      - key: CORS_ORIGINS
+        value: https://sialkothub-web.onrender.com,capacitor://localhost,ionic://localhost
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 3. CNIC VERIFICATION SERVICE  (FastAPI — backend/main.py)
+  #    Handles: CNIC OCR, face matching (DeepFace), Firebase storage
+  #
+  #    WARNING: This service is heavy (~1GB RAM for DeepFace + TensorFlow).
+  #    Free tier (512MB) may OOM. Use 'starter' plan or higher.
+  # ─────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: sialkothub-cnic
+    runtime: python
+    region: singapore
+    plan: starter   # DeepFace needs more RAM than free tier
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: google-vision-service-account.json
+      - key: GOOGLE_CLOUD_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CREDENTIALS
+        value: firebase-service-account.json
+      - key: FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://sialkothub-web.onrender.com,https://sialkothub-auth.onrender.com,capacitor://localhost,ionic://localhost
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 4. REACT FRONTEND  (Static Site — Vite production build)
+  #    Serves: built React app as a static site
+  #
+  #    Vite bakes VITE_* env vars at build time, so set them before build.
+  # ─────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: sialkothub-web
+    runtime: static
+    region: singapore
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./build
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # These are baked into the JS bundle at build time by Vite
+      - key: VITE_API_URL
+        value: https://sialkothub-auth.onrender.com
+      - key: VITE_MAIN_API_URL
+        value: https://sialkothub-auth.onrender.com
+      - key: VITE_AUTH_API_URL
+        value: https://sialkothub-auth.onrender.com
+      - key: VITE_CHAT_API_URL
+        value: https://sialkothub-chat.onrender.com
+      - key: VITE_CNIC_API_URL
+        value: https://sialkothub-cnic.onrender.com
+      - key: VITE_DISPUTE_API_URL
+        value: https://sialkothub-bert.onrender.com
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  BERT DISPUTE SERVICE  (not in blueprint — manual setup required)
+#
+#  The BERT service (.venv / dispute_final.py) is a separate heavy Python
+#  ML service. Deploy it manually on Render:
+#
+#  1. If you have a dispute_final.py, create a new Web Service on Render
+#  2. Set runtime: Python, region: Singapore
+#  3. Build: pip install flask transformers torch
+#  4. Start: python dispute_final.py  (or: flask run --host=0.0.0.0 --port=$PORT)
+#  5. Set env var PORT will be provided by Render
+#  6. After deploy, set FLASK_API_URL=https://sialkothub-bert.onrender.com
+#     in both sialkothub-auth and sialkothub-chat services
+#
+#  If you don't deploy BERT, dispute resolution falls back to keyword detection.
+# ═══════════════════════════════════════════════════════════════════════════════

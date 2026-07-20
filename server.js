@@ -1,29 +1,56 @@
-require('dotenv').config(); // ✅ Load .env variables
+require('dotenv').config();
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
-const path = require('path');
-app.use(express.json());
-app.use('/uploads', require('express').static(path.join(__dirname, 'uploads')));
+// ── CORS Origins ───────────────────────────────────────────────────────────────
+// Render sets CORS_ORIGINS env var in production.
+const CORS_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
+  : ['http://localhost:3000', 'http://localhost:5173'];
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: CORS_ORIGINS,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+// ── Middleware ─────────────────────────────────────────────────────────────────
+app.use(express.json({ limit: '50mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (!origin || CORS_ORIGINS.includes(origin) || origin.startsWith('capacitor://') || origin.startsWith('ionic://')) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    res.header('Access-Control-Allow-Origin', CORS_ORIGINS[0]);
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
-// ─── MongoDB ──────────────────────────────────────────────────────────────────
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://junaidmussawwar1_db_user:skillora321@cluster0.cg7mmxx.mongodb.net/SialkotHub';
-mongoose.connect(MONGO_URI).then(() => console.log('✅ MongoDB connected')).catch(e => console.error('❌ MongoDB error:', e));
+// ── MongoDB ────────────────────────────────────────────────────────────────────
+const MONGO_URI = process.env.MONGO_URI;
+if (!MONGO_URI) {
+  console.error('❌ MONGO_URI env var not set. Exiting.');
+  process.exit(1);
+}
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch(e => console.error('❌ MongoDB error:', e));
 
+// ── Mongoose Schemas ───────────────────────────────────────────────────────────
 const messageSchema = new mongoose.Schema({
   orderId: String,
   conversationId: String,
@@ -56,11 +83,11 @@ const userSocketSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-const Message = mongoose.model('Message', messageSchema);
+const Message      = mongoose.model('Message', messageSchema);
 const Conversation = mongoose.model('Conversation', conversationSchema);
-const UserSocket = mongoose.model('UserSocket', userSocketSchema);
+const UserSocket   = mongoose.model('UserSocket', userSocketSchema);
 
-// ─── JWT Middleware ───────────────────────────────────────────────────────────
+// ── JWT Middleware ─────────────────────────────────────────────────────────────
 const JWT_SECRET = process.env.JWT_SECRET || 'secret123';
 
 function verifyToken(req, res, next) {
@@ -75,11 +102,11 @@ function verifyToken(req, res, next) {
   }
 }
 
-// ─── AI Dispute Detection (server-side) ──────────────────────────────────────
+// ── AI Dispute Detection (server-side keyword check) ──────────────────────────
 const DISPUTE_KEYWORDS = [
   'fraud', 'scam', 'cheat', 'fake', 'steal', 'threat', 'kill', 'blackmail',
   'refund outside', 'pay directly', 'bypass', 'cancel order', 'dhoka', 'fareb',
-  'mar dunga', 'jaan se', 'bahar pay', 'direct payment'
+  'mar dunga', 'jaan se', 'bahar pay', 'direct payment',
 ];
 
 function checkDispute(text) {
@@ -88,11 +115,11 @@ function checkDispute(text) {
   return matched ? `Suspicious content detected: "${matched}"` : null;
 }
 
-// ─── Dispute Routes ───────────────────────────────────────────────────────────
+// ── Dispute Routes ─────────────────────────────────────────────────────────────
 const disputeRoutes = require('./routes/disputeRoutes');
 app.use('/api/dispute', disputeRoutes);
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
+// ── Chat API Routes ────────────────────────────────────────────────────────────
 
 // GET inbox
 app.get('/api/messages/inbox', verifyToken, async (req, res) => {
@@ -108,7 +135,12 @@ app.get('/api/messages/inbox', verifyToken, async (req, res) => {
         orderId: conv.orderId,
         lastMessage: last?.message?.startsWith('IMAGE_DATA:') ? '📷 Image' : (last?.message || ''),
         updatedAt: conv.updatedAt,
-        with: { id: otherId, name: last ? (String(last.sender) === userId ? (last.receiverName || otherId) : (last.senderName || otherId)) : otherId },
+        with: {
+          id: otherId,
+          name: last
+            ? (String(last.sender) === userId ? (last.receiverName || otherId) : (last.senderName || otherId))
+            : otherId,
+        },
         unread: conv.unreadCount || 0,
         isLocked: conv.isLocked,
       };
@@ -140,17 +172,14 @@ app.get('/api/messages/:orderId', verifyToken, async (req, res) => {
 app.post('/api/messages', verifyToken, async (req, res) => {
   const { orderId, sender, senderName, receiver, receiverName, message } = req.body;
   try {
-    // Participant check
     const conv = await Conversation.findOne({ orderId });
     if (conv?.isLocked) return res.status(403).json({ error: 'Chat is locked for security review', locked: true });
 
-    // Server-side AI dispute detection
     const flagReason = checkDispute(message || '');
     const isFlagged = !!flagReason;
     let warnings = 0;
 
     if (isFlagged) {
-      // Count existing flags for this conversation
       warnings = await Message.countDocuments({ orderId, isFlagged: true }) + 1;
       if (warnings >= 3) {
         await Conversation.findOneAndUpdate(
@@ -170,7 +199,6 @@ app.post('/api/messages', verifyToken, async (req, res) => {
     });
     await msg.save();
 
-    // Update conversation
     const participants = [String(sender), String(receiver)].filter(Boolean);
     await Conversation.findOneAndUpdate(
       { orderId },
@@ -178,7 +206,6 @@ app.post('/api/messages', verifyToken, async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // Broadcast to room
     io.to(orderId).emit('receive_message', { message: msg });
 
     const response = { message: msg };
@@ -190,7 +217,10 @@ app.post('/api/messages', verifyToken, async (req, res) => {
   }
 });
 
-// ─── Socket.io ────────────────────────────────────────────────────────────────
+// ── Health check ───────────────────────────────────────────────────────────────
+app.get('/health', (req, res) => res.json({ status: 'ok', service: 'chat-server', env: process.env.NODE_ENV }));
+
+// ── Socket.io ─────────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('🔌 User connected:', socket.id);
 
@@ -237,5 +267,9 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 5001;
-httpServer.listen(PORT, '0.0.0.0', () => console.log(`Chat server running on http://0.0.0.0:${PORT}`));
+// ── Server Start ───────────────────────────────────────────────────────────────
+// Render sets PORT automatically. Fallback to 5001 for local dev.
+const PORT = process.env.PORT || 5001;
+httpServer.listen(PORT, '0.0.0.0', () =>
+  console.log(`✅ Chat server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`)
+);

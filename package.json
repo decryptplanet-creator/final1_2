@@ -70,9 +70,11 @@
       "scripts": {
             "dev": "node node_modules/vite/bin/vite.js",
             "build": "node node_modules/vite/bin/vite.js build",
+            "build:prod": "node node_modules/vite/bin/vite.js build --mode production",
+            "preview": "node node_modules/vite/bin/vite.js preview",
             "server": "node server.js",
             "auth": "node authServer.js",
-            "start:bert": "\"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python313\\python.exe\" \"../R_Back/Dispute_final/dispute_final.py\"",
-            "dev:all": "concurrently \"npm run server\" \"npm run dev\" \"npm run start:bert\""
+            "start:cnic": "cd backend && uvicorn main:app --host 0.0.0.0 --port 8000",
+            "dev:all": "concurrently --names \"AUTH,CHAT,VITE\" --prefix-colors \"blue,green,cyan\" \"npm run auth\" \"npm run server\" \"npm run dev\""
       }
 }

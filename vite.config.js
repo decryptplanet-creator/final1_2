@@ -5,8 +5,15 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+
+  // ── Environment variables ──────────────────────────────────────────────────
+  // Vite automatically loads:
+  //   .env.development  when mode=development  (npm run dev)
+  //   .env.production   when mode=production   (npm run build)
+  envDir: './',
+
   resolve: {
     extensions: ['.js', '.jsx', '.json'],
     alias: {
@@ -51,14 +58,16 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+
   build: {
     target: 'esnext',
     outDir: 'build',
   },
+
   server: {
     port: 3000,
     host: '0.0.0.0',
     open: true,
     historyApiFallback: true,
   },
-});
+}));

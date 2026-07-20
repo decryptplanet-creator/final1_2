@@ -12,10 +12,12 @@ function hasRomanUrduFraud(text) {
   return FRAUD_KEYWORDS.some(word => lower.includes(word));
 }
 
-// Call BERT service (Python Flask on port 5000)
+// Call BERT service — URL comes from FLASK_API_URL env var (set in .env.development / .env.production)
 async function getBertScore(text) {
   try {
-    const res = await axios.post(`${process.env.FLASK_API_URL || 'http://10.3.11.33:5000'}/predict-dispute`, { message: text }, { timeout: 5000 });
+    const bertUrl = process.env.FLASK_API_URL;
+    if (!bertUrl) return null; // BERT not configured — fallback to keyword only
+    const res = await axios.post(`${bertUrl}/predict-dispute`, { message: text }, { timeout: 5000 });
     // Returns { status: "DISPUTE"/"NORMAL", confidence: "87.5%" }
     const status = res.data?.status;
     const confidence = parseFloat(res.data?.confidence) / 100 || 0;
