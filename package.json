@@ -59,17 +59,17 @@
             "sonner": "^2.0.3",
             "stripe": "^14.25.0",
             "tailwind-merge": "2.6.0",
-            "vaul": "^1.1.2"
+            "vaul": "^1.1.2",
+            "vite": "^6.4.3",
+            "@vitejs/plugin-react-swc": "^3.10.2",
+            "@types/node": "^20.10.0"
       },
       "devDependencies": {
-            "@types/node": "^20.10.0",
-            "@vitejs/plugin-react-swc": "^3.10.2",
-            "concurrently": "^10.0.3",
-            "vite": "^6.4.3"
+            "concurrently": "^10.0.3"
       },
       "scripts": {
             "dev": "node node_modules/vite/bin/vite.js",
-            "build": "node node_modules/vite/bin/vite.js build",
+            "build": "node node_modules/vite/bin/vite.js build --mode production",
             "build:prod": "node node_modules/vite/bin/vite.js build --mode production",
             "preview": "node node_modules/vite/bin/vite.js preview",
             "server": "node server.js",
