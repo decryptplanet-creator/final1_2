@@ -3,8 +3,8 @@ import axios from 'axios';
 import io from 'socket.io-client';
 import { X, MessageSquare, Loader2, User } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_CHAT_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:5001';
-const SOCKET_URL = import.meta.env.VITE_CHAT_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_CHAT_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:5003';
+const SOCKET_URL = import.meta.env.VITE_CHAT_API_URL || 'http://localhost:5003';
 
 const authHeaders = () => {
   const token = localStorage.getItem('token');

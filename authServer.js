@@ -20,7 +20,7 @@ app.use((req, res, next) => {
 });
 
 // ── MongoDB ────────────────────────────────────────────────────────────────────
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/skillora_chat')
+mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://junaidmussawwar1_db_user:skillora321@cluster0.cg7mmxx.mongodb.net/SialkotHub')
   .then(async () => {
     console.log('✅ MongoDB connected');
     // Seed admin user if not exists
@@ -182,8 +182,8 @@ app.post('/api/escrow/stripe/initiate', async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment', payment_method_types: ['card'],
       line_items: [{ price_data: { currency:'pkr', product_data:{ name: title||'Skillora Order Payment' }, unit_amount: Math.round(amount*100) }, quantity:1 }],
-      success_url: `http://localhost:5173/payment-success?session_id={CHECKOUT_SESSION_ID}&orderId=${orderId}`,
-      cancel_url:  `http://localhost:5173/payment-cancel`,
+      success_url: `http://10.3.11.33:5003/payment-success?session_id={CHECKOUT_SESSION_ID}&orderId=${orderId}`,
+      cancel_url:  `http://10.3.11.33:5003/payment-cancel`,
     });
     const order = orders.find(o => o._id === orderId);
     if (order) { order.stripeSessionId = session.id; order.escrowStatus = 'awaiting_payment'; saveOrders(orders); }
@@ -258,4 +258,4 @@ app.post('/api/verify-location', async (req, res) => {
 });
 
 const PORT = 5003;
-httpServer.listen(PORT, () => console.log(`✅ Auth server running on http://localhost:${PORT}`));
+httpServer.listen(PORT, '0.0.0.0', () => console.log(`✅ Auth server running on http://0.0.0.0:${PORT}`));

@@ -2,8 +2,8 @@ import { Star, CheckCircle, MessageSquare } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
-const API_BASE = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5004';
-const SOCKET_URL = 'http://localhost:5001';
+const API_BASE = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5003';
+const SOCKET_URL = import.meta.env.VITE_CHAT_API_URL || 'http://localhost:5003';
 
 // Map DB user → profile card shape
 function dbUserToProfile(u) {

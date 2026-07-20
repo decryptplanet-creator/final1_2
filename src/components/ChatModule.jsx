@@ -3,7 +3,7 @@ import axios from 'axios';
 import io from 'socket.io-client';
 import { Send, X, Loader2, AlertTriangle, Lock, Paperclip, Camera, Image, FileText, Phone, Video, MoreVertical, Smile } from 'lucide-react';
 
-const CHAT_SERVER_URL = import.meta.env.VITE_CHAT_API_URL || 'http://localhost:5001';
+const CHAT_SERVER_URL = import.meta.env.VITE_CHAT_API_URL || 'http://localhost:5003';
 const API_URL = `${CHAT_SERVER_URL}/api/messages`;
 
 const authHeaders = () => {

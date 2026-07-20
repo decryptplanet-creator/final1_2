@@ -28,7 +28,8 @@ def _get_deepface():
         from deepface import DeepFace
         return DeepFace
     except Exception as e:
-        raise RuntimeError(f"DeepFace not available: {e}") from e
+        print(f"[FaceService] Warning: DeepFace not available: {e}")
+        return None
 
 
 class FaceService:
@@ -40,6 +41,9 @@ class FaceService:
         """Kept for backwards compatibility — uses RetinaFace internally."""
         try:
             DeepFace = _get_deepface()
+            if DeepFace is None:
+                return FaceDetectionResult(face_detected=False, face_count=0, confidence=0.0,
+                                           details={"error": "DeepFace not available"})
             image = decode_base64_image(image_data)
             faces = DeepFace.extract_faces(
                 img_path=image,
@@ -91,6 +95,8 @@ class FaceService:
 
         # ── Step 2: Check RetinaFace can detect faces ──────────────────────────
         DeepFace = _get_deepface()
+        if DeepFace is None:
+            return self._fail("DeepFace not available - face verification unavailable")
 
         print("[FaceService] Checking CNIC face detection with RetinaFace...")
         try:
@@ -189,6 +195,8 @@ class FaceService:
     def get_face_landmarks(self, image_data: str):
         try:
             DeepFace = _get_deepface()
+            if DeepFace is None:
+                return {"success": False, "error": "DeepFace not available"}
             image = decode_base64_image(image_data)
             result = DeepFace.analyze(img_path=image, actions=["emotion"], enforce_detection=False)
             return {"success": True, "analysis": result}

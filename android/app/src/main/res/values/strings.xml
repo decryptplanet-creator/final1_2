@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SialkotHub</string>
+    <string name="title_activity_main">SialkotHub</string>
+    <string name="package_name">com.sialkothub.app</string>
+    <string name="custom_url_scheme">com.sialkothub.app</string>
+</resources>

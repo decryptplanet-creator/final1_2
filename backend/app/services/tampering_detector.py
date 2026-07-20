@@ -1,8 +1,16 @@
 import cv2
 import numpy as np
 from typing import Dict, Any
-from skimage import io, filters, feature
-from scipy import ndimage
+
+try:
+    from skimage import io, filters, feature
+    from scipy import ndimage
+    HAS_SCIENTIFIC_IMAGE_LIBS = True
+except Exception:
+    io = filters = feature = None
+    ndimage = None
+    HAS_SCIENTIFIC_IMAGE_LIBS = False
+
 from ..schemas import TamperingDetectionResult
 from ..utils.image_preprocessor import decode_base64_image, preprocess_cnic_image
 
@@ -151,9 +159,15 @@ class TamperingDetector:
         
         # Estimate noise using wavelet transform
         # High-frequency coefficients represent noise
-        from skimage.restoration import estimate_sigma
+        if HAS_SCIENTIFIC_IMAGE_LIBS:
+            from skimage.restoration import estimate_sigma
+        else:
+            estimate_sigma = None
         
         try:
+            if estimate_sigma is None:
+                raise RuntimeError("scikit-image is unavailable")
+
             # Estimate noise standard deviation
             noise_sigma = estimate_sigma(gray)
             

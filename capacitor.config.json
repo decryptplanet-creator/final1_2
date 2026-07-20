@@ -1,0 +1,15 @@
+{
+  "appId": "com.sialkothub.app",
+  "appName": "SialkotHub",
+  "webDir": "build",
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

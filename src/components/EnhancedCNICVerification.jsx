@@ -12,7 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_CNIC_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export function EnhancedCNICVerification({ onVerificationComplete, onBack }) {
   const { isDarkMode } = useTheme();

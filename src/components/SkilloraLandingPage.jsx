@@ -799,7 +799,7 @@ onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             </button>
             <X size={24} onClick={() => setIsChatOpen(false)} className="cursor-pointer" />
           </div>
-          <iframe src="http://localhost:8501/?embed=true" className="w-full h-full border-none" title="Legal AI Assistant" />
+          <iframe src={`${import.meta.env.VITE_STREAMLIT_URL || 'http://10.3.11.33:8501'}/?embed=true`} className="w-full h-full border-none" title="Legal AI Assistant" />
         </div>
       )}
     </div>

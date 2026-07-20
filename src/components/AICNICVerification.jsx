@@ -5,7 +5,7 @@ import { CheckCircle, Sparkles, Camera, Upload, X, AlertCircle } from 'lucide-re
 import { useTheme } from '../contexts/ThemeContext';
 import { motion, AnimatePresence } from 'motion/react';
 
-const BACKEND_URL = 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_CNIC_API_URL || 'http://10.3.11.33:8000';
 
 export function AICNICVerification({ onVerificationComplete, onBack }) {
   const { isDarkMode } = useTheme();

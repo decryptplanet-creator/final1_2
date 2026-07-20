@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { Camera, CheckCircle, XCircle, Upload, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_CNIC_API_URL || 'http://localhost:8000';
 
 export function SelfieCapture({ onVerified, cnicUploaded }) {
   const [selfieImage, setSelfieImage] = useState(null);

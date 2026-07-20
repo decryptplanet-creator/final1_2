@@ -15,7 +15,7 @@ function hasRomanUrduFraud(text) {
 // Call BERT service (Python Flask on port 5000)
 async function getBertScore(text) {
   try {
-    const res = await axios.post('http://localhost:5000/predict-dispute', { message: text }, { timeout: 5000 });
+    const res = await axios.post(`${process.env.FLASK_API_URL || 'http://10.3.11.33:5000'}/predict-dispute`, { message: text }, { timeout: 5000 });
     // Returns { status: "DISPUTE"/"NORMAL", confidence: "87.5%" }
     const status = res.data?.status;
     const confidence = parseFloat(res.data?.confidence) / 100 || 0;

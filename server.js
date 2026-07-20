@@ -1,3 +1,4 @@
+require('dotenv').config(); // ✅ Load .env variables
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
@@ -20,7 +21,7 @@ app.use((req, res, next) => {
 });
 
 // ─── MongoDB ──────────────────────────────────────────────────────────────────
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/skillora_chat';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://junaidmussawwar1_db_user:skillora321@cluster0.cg7mmxx.mongodb.net/SialkotHub';
 mongoose.connect(MONGO_URI).then(() => console.log('✅ MongoDB connected')).catch(e => console.error('❌ MongoDB error:', e));
 
 const messageSchema = new mongoose.Schema({
@@ -237,4 +238,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 5001;
-httpServer.listen(PORT, () => console.log(`Chat server running on http://localhost:${PORT}`));
+httpServer.listen(PORT, '0.0.0.0', () => console.log(`Chat server running on http://0.0.0.0:${PORT}`));
